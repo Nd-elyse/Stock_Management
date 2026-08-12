@@ -1,0 +1,116 @@
+<?php
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Diagnostic;
+use App\Models\RepairJob;
+use Illuminate\Http\Request;
+
+class RepairJobController extends Controller
+{
+    private function withNames()
+    {
+        return RepairJob::with(['vehicle.customer', 'mechanic'])->orderByDesc('JobID')->get()->map(function ($j) {
+            $j->CustomerName = $j->vehicle->customer->FullName ?? null;
+            $j->PlateNumber = $j->vehicle->PlateNumber ?? null;
+            $j->MechanicName = $j->mechanic->FullName ?? null;
+            return $j;
+        });
+    }
+
+    public function index(Request $request)
+    {
+        if ($request->filled('id')) {
+            $j = RepairJob::with(['vehicle.customer', 'mechanic', 'diagnostics'])->find($request->query('id'));
+            if (!$j) return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
+            $j->CustomerName = $j->vehicle->customer->FullName ?? null;
+            $j->PlateNumber = $j->vehicle->PlateNumber ?? null;
+            $j->MechanicName = $j->mechanic->FullName ?? null;
+            return response()->json(['success' => true, 'data' => $j]);
+        }
+
+        $user = auth()->user();
+        if ($user && $user->Role === 'Mechanic' && $user->MechanicID) {
+            $jobs = RepairJob::with(['vehicle.customer', 'mechanic'])
+                ->where('MechanicID', $user->MechanicID)
+                ->orderByDesc('JobID')->get()
+                ->map(function ($j) {
+                    $j->CustomerName = $j->vehicle->customer->FullName ?? null;
+                    $j->PlateNumber = $j->vehicle->PlateNumber ?? null;
+                    return $j;
+                });
+            return response()->json(['success' => true, 'data' => $jobs]);
+        }
+
+        return response()->json(['success' => true, 'data' => $this->withNames()]);
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'vehicle_id' => 'required|integer|exists:vehicles,VehicleID',
+            'mechanic_id' => 'nullable|integer|exists:mechanics,MechanicID',
+            'start_date' => 'required|date',
+            'end_date' => 'nullable|date',
+            'status' => 'nullable|string',
+        ]);
+        $job = RepairJob::create([
+            'VehicleID' => $data['vehicle_id'],
+            'MechanicID' => $data['mechanic_id'] ?? null,
+            'StartDate' => $data['start_date'],
+            'EndDate' => $data['end_date'] ?? null,
+            'Status' => $data['status'] ?? 'Pending',
+        ]);
+        return response()->json(['success' => true, 'message' => 'Repair job created.', 'data' => $job]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $job = RepairJob::find($id);
+        if (!$job) {
+            return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
+        }
+        $data = $request->validate([
+            'vehicle_id' => 'sometimes|integer|exists:vehicles,VehicleID',
+            'mechanic_id' => 'nullable|integer|exists:mechanics,MechanicID',
+            'start_date' => 'sometimes|date',
+            'end_date' => 'nullable|date',
+            'status' => 'sometimes|string',
+        ]);
+        $job->fill(array_filter([
+            'VehicleID' => $data['vehicle_id'] ?? null,
+            'MechanicID' => array_key_exists('mechanic_id', $data) ? $data['mechanic_id'] : null,
+            'StartDate' => $data['start_date'] ?? null,
+            'EndDate' => array_key_exists('end_date', $data) ? $data['end_date'] : null,
+            'Status' => $data['status'] ?? null,
+        ], fn ($v) => $v !== null));
+        $job->save();
+        return response()->json(['success' => true, 'message' => 'Job updated.', 'data' => $job]);
+    }
+
+    public function destroy(int $id)
+    {
+        $job = RepairJob::find($id);
+        if (!$job) {
+            return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
+        }
+        $job->delete();
+        return response()->json(['success' => true, 'message' => 'Job removed successfully.']);
+    }
+
+    public function diagnostics(Request $request, int $jobId)
+    {
+        if ($request->isMethod('get')) {
+            $diag = Diagnostic::where('JobID', $jobId)->orderByDesc('DiagnosticID')->first();
+            return response()->json(['success' => true, 'data' => $diag]);
+        }
+
+        $data = $request->validate(['notes' => 'required|string|min:5']);
+        $job = RepairJob::find($jobId);
+        if (!$job) {
+            return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
+        }
+        $diagnostic = Diagnostic::create(['JobID' => $jobId, 'Notes' => $data['notes']]);
+        return response()->json(['success' => true, 'message' => 'Diagnostics saved successfully.', 'data' => $diagnostic]);
+    }
+}

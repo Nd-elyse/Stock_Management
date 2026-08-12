@@ -1,0 +1,8 @@
+/* Global visual design lives in src/assets/style.css (public site) and
+   src/assets/staff.css (dashboards), both imported where needed so the
+   original PHP app's look is preserved exactly. This file is reserved
+   for any app-shell-level tweaks. */
+
+#root {
+  min-height: 100vh;
+}

@@ -1,0 +1,4 @@
+/* Auth page styling (.auth-wrapper, .auth-visual, .auth-card, .role-chip,
+   .login-alert, etc.) is centralized in src/assets/style.css so a future
+   password-reset/OTP screen can reuse the same look. This file is
+   reserved for any Login-only overrides. */

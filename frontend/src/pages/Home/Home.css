@@ -1,0 +1,3 @@
+/* Home page styling (.hero, .stat-item, .feature-card, .process-step, etc.)
+   is centralized in src/assets/style.css so it's shared with About/Contact.
+   This file is reserved for any Home-only overrides. */
