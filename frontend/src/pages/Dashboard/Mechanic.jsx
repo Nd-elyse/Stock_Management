@@ -123,7 +123,7 @@ export default function Mechanic() {
   };
 
   const deleteHistoryJob = async (job) => {
-    if (!ConfirmDelete(`Job ${job.JobID}`)) return;
+    if (!(await ConfirmDelete('job', `Job ${job.JobID}`))) return;
     const res = await jobsApi.removeJob(job.JobID);
     if (res.success) { showToast('Job removed successfully.', 'success'); loadAll(); }
     else showToast(res.message || 'Failed to delete job.', 'danger');
@@ -139,7 +139,7 @@ export default function Mechanic() {
     else showToast(res.message || 'Could not submit request.', 'danger');
   };
   const cancelRequest = async (r) => {
-    if (!ConfirmDelete('this request')) return;
+    if (!(await ConfirmDelete('request'))) return;
     const res = await inventoryApi.removeSparePartRequest(r.RequestID);
     if (res.success) { showToast('Request cancelled successfully.', 'success'); loadAll(); }
   };

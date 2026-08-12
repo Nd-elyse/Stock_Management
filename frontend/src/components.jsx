@@ -185,8 +185,71 @@ export function Modal({ id, title, icon, children, size = '' }) {
   );
 }
 
-export function ConfirmDelete(entityLabel) {
-  return window.confirm(`Are you sure you want to delete this ${entityLabel}? This action cannot be undone.`);
+/* ============================================================
+   PREMIUM CONFIRM-DELETE MODAL
+   ------------------------------------------------------------
+   ConfirmDeleteHost is mounted once (inside DashboardShell) and
+   registers itself as the active handler. ConfirmDelete() is then
+   called the same way it always was - as a plain imported function,
+   no hooks/context needed at the call site - but now returns a
+   Promise<boolean> instead of using the blocking window.confirm().
+   Callers just need `await`: `if (!(await ConfirmDelete('user', name))) return;`
+   ============================================================ */
+let _confirmDeleteImpl = null;
+
+export function ConfirmDeleteHost() {
+  const [state, setState] = useState(null); // { entityLabel, name, resolve }
+
+  useEffect(() => {
+    _confirmDeleteImpl = (entityLabel, name) => new Promise((resolve) => {
+      setState({ entityLabel: entityLabel || 'item', name, resolve });
+    });
+    return () => { _confirmDeleteImpl = null; };
+  }, []);
+
+  const close = (result) => {
+    if (state) state.resolve(result);
+    setState(null);
+  };
+
+  useEffect(() => {
+    if (!state) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') close(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  if (!state) return null;
+
+  const label = state.entityLabel;
+  const titleLabel = label.charAt(0).toUpperCase() + label.slice(1);
+
+  return (
+    <div className="confirm-overlay" onClick={() => close(false)}>
+      <div className="confirm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="confirm-modal-header">
+          <h5><span className="confirm-icon"><i className="bi bi-trash3-fill"></i></span> Delete {titleLabel}</h5>
+          <button type="button" className="btn-close-confirm" onClick={() => close(false)} aria-label="Close"><i className="bi bi-x-lg"></i></button>
+        </div>
+        <div className="confirm-modal-body">
+          {state.name
+            ? <>Are you sure you want to delete <strong>&ldquo;{state.name}&rdquo;</strong>? This action cannot be undone.</>
+            : <>Are you sure you want to delete this {label}? This action cannot be undone.</>}
+        </div>
+        <div className="confirm-modal-footer">
+          <button type="button" className="confirm-btn-cancel" onClick={() => close(false)}>Cancel</button>
+          <button type="button" className="confirm-btn-danger" onClick={() => close(true)}>Continue</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ConfirmDelete(entityLabel, name) {
+  if (_confirmDeleteImpl) return _confirmDeleteImpl(entityLabel, name);
+  // Fallback (host not mounted yet) so the app never hard-fails.
+  return Promise.resolve(window.confirm(`Are you sure you want to delete this ${entityLabel}? This action cannot be undone.`));
 }
 
 /* ============================================================
@@ -356,6 +419,7 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
         </div>
         <div className="dashboard-content">{children}</div>
       </div>
+      <ConfirmDeleteHost />
     </>
   );
 }

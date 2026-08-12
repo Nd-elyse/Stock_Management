@@ -86,7 +86,8 @@ export default function StockManager() {
       else showToast(res.message || `Could not save ${label.toLowerCase()}.`, 'danger');
     },
     remove: async (row) => {
-      if (!ConfirmDelete(label.toLowerCase())) return;
+      const displayName = row.FullName || row.PartName || row.CompanyName || row.CategoryName || row[idKey];
+      if (!(await ConfirmDelete(label.toLowerCase(), displayName))) return;
       const res = await api.remove(row[idKey]);
       showToast(res.success ? `${label} deleted.` : res.message || `Could not delete ${label.toLowerCase()}.`, res.success ? 'success' : 'danger');
       if (res.success) loadAll();
@@ -267,7 +268,7 @@ export default function StockManager() {
                 rows={purchases}
                 renderActions={(r) => (
                   <button className="btn-icon danger" onClick={async () => {
-                    if (!ConfirmDelete('purchase record')) return;
+                    if (!(await ConfirmDelete('purchase record', `Purchase #${r.PurchaseID}`))) return;
                     const res = await inventoryApi.removePurchase(r.PurchaseID);
                     if (res.success) { showToast('Purchase removed.', 'success'); loadAll(); }
                   }}><i className="bi bi-trash"></i></button>

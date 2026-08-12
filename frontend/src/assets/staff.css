@@ -1400,3 +1400,235 @@ select option:disabled { color: #94a3b8; }
 #assignedTable .btn-action.view {
     font-size: 1.05rem;
 }
+
+/* ============================================================
+   PREMIUM ROW-ACTION ICON BUTTONS (edit / delete)
+   ============================================================ */
+.row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.98rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.2s ease, background 0.25s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+.btn-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.btn-icon i {
+    position: relative;
+    z-index: 1;
+    transition: transform 0.2s ease;
+}
+.btn-icon:hover {
+    color: var(--primary-blue);
+    background: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+}
+.btn-icon:hover i {
+    transform: scale(1.08);
+}
+.btn-icon:active {
+    transform: translateY(0) scale(0.94);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.16);
+}
+.btn-icon.danger {
+    color: #94a3b8;
+}
+.btn-icon.danger:hover {
+    color: #dc2626;
+    background: #fee2e2;
+    box-shadow: 0 6px 14px rgba(220, 38, 38, 0.18);
+}
+.btn-icon.danger:active {
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.18);
+}
+.btn-icon:focus-visible {
+    outline: 2px solid var(--primary-blue);
+    outline-offset: 2px;
+}
+.btn-icon:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ============================================================
+   CUSTOM CONFIRM MODAL (replaces window.confirm())
+   ============================================================ */
+@keyframes confirmOverlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes confirmModalIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: confirmOverlayIn 0.18s ease-out;
+}
+.confirm-modal {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg-white);
+    border-radius: var(--radius-card);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+    animation: confirmModalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.confirm-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.15rem 1.4rem;
+    border-bottom: 1px solid var(--border-light);
+}
+.confirm-modal-header h5 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.confirm-modal-header .confirm-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #fee2e2;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+.confirm-modal-header .btn-close-confirm {
+    border: none;
+    background: transparent;
+    color: var(--text-light);
+    font-size: 1.1rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.confirm-modal-header .btn-close-confirm:hover {
+    background: var(--bg-body);
+    color: var(--text-dark);
+}
+.confirm-modal-body {
+    padding: 1.3rem 1.4rem;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+.confirm-modal-body strong {
+    color: var(--text-dark);
+}
+.confirm-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding: 1rem 1.4rem;
+    border-top: 1px solid var(--border-light);
+    background: #fafbfc;
+}
+.confirm-btn-cancel {
+    border: 1.5px solid var(--border-light);
+    background: var(--bg-white);
+    color: var(--text-dark);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+}
+.confirm-btn-cancel:hover {
+    background: var(--bg-body);
+    border-color: #cbd5e1;
+}
+.confirm-btn-danger {
+    border: none;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.55rem 1.3rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.confirm-btn-danger:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(220, 38, 38, 0.34);
+}
+.confirm-btn-danger:active {
+    transform: translateY(0);
+}
+
+/* ============================================================
+   PREMIUM FORM SECTION DIVIDER (used for conditional / grouped
+   form fields, e.g. mechanic-only fields in the Add User modal)
+   ============================================================ */
+.form-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.35rem 0 0.15rem;
+    color: var(--text-light);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.form-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+}
+.field-reveal {
+    animation: fadeUp 0.28s ease-out;
+}

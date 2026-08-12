@@ -92,7 +92,8 @@ export default function Receptionist() {
       else showToast(res.message || `Could not save ${label.toLowerCase()}.`, 'danger');
     },
     remove: async (row, idKey) => {
-      if (!ConfirmDelete(label.toLowerCase())) return;
+      const displayName = row.FullName || row.PlateNumber || row.CompanyName || row.PartName || row.Subject || row[idKey];
+      if (!(await ConfirmDelete(label.toLowerCase(), displayName))) return;
       const res = await api.remove(row[idKey]);
       showToast(res.success ? `${label} deleted.` : res.message || `Could not delete ${label.toLowerCase()}.`, res.success ? 'success' : 'danger');
       if (res.success) reload();
