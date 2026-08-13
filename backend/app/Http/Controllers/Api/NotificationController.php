@@ -87,7 +87,6 @@ class NotificationController extends Controller
     {
         $n = Notification::find($id);
         if (!$n) return response()->json(['success' => false, 'message' => 'Notification not found.'], 404);
-        $n->delete();
-        return response()->json(['success' => true, 'message' => 'Notification deleted.']);
+        return $this->safeDelete($n, 'notification');
     }
 }

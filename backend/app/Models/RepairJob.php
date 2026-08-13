@@ -8,7 +8,7 @@ class RepairJob extends Model
     protected $table = 'repairjobs';
     protected $primaryKey = 'JobID';
     public $timestamps = false;
-    protected $fillable = ['VehicleID', 'MechanicID', 'StartDate', 'EndDate', 'Status'];
+    protected $fillable = ['VehicleID', 'MechanicID', 'UserID', 'StartDate', 'EndDate', 'Status'];
 
     public function vehicle()
     {
@@ -18,6 +18,11 @@ class RepairJob extends Model
     public function mechanic()
     {
         return $this->belongsTo(Mechanic::class, 'MechanicID', 'MechanicID');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'UserID', 'UserID');
     }
 
     public function diagnostics()

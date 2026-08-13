@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, printElementById, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
 import { useAuth, useToast } from '../../context';
 import { inventoryApi, notificationsApi, authApi } from '../../api';
 
@@ -24,7 +24,7 @@ const NAV_SECTIONS = [
 
 const emptyPart = { SparePartID: null, PartName: '', CategoryID: '', SupplierID: '', Quantity: '', ReorderLevel: '', UnitPrice: '' };
 const emptyCategory = { CategoryID: null, CategoryName: '', Description: '' };
-const emptySupplier = { SupplierID: null, CompanyName: '', ContactPerson: '', Phone: '', Email: '', Address: '' };
+const emptySupplier = { SupplierID: null, CompanyName: '', Phone: '', Email: '', Address: '' };
 const emptyPurchase = { SparePartID: '', SupplierID: '', Quantity: '', UnitPrice: '', PurchaseDate: '' };
 
 export default function StockManager() {
@@ -98,6 +98,10 @@ export default function StockManager() {
   const categoryCrud = withCrud('Category', { save: inventoryApi.saveCategory, remove: inventoryApi.removeCategory }, categoryForm, setCategoryForm, emptyCategory, 'categoryModal', 'CategoryID');
   const supplierCrud = withCrud('Supplier', { save: inventoryApi.saveSupplier, remove: inventoryApi.removeSupplier }, supplierForm, setSupplierForm, emptySupplier, 'supplierModal', 'SupplierID');
 
+  const viewPart = useViewModal('viewPartModal');
+  const viewSupplier = useViewModal('viewSupplierModal');
+  const viewPurchase = useViewModal('viewPurchaseModal');
+
   const openPurchase = () => { setPurchaseForm(emptyPurchase); showBsModal('purchaseModal'); };
   const savePurchase = async (e) => {
     e.preventDefault();
@@ -170,10 +174,23 @@ export default function StockManager() {
                 rows={spareParts}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewPart.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => partCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => partCrud.remove(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewPartModal" title="Spare Part Details" icon="bi-boxes"
+                fields={viewPart.row && [
+                  { label: 'Part Name', value: viewPart.row.PartName },
+                  { label: 'Category', value: viewPart.row.CategoryName || categoryName(viewPart.row.CategoryID) },
+                  { label: 'Supplier', value: viewPart.row.SupplierName || supplierName(viewPart.row.SupplierID) },
+                  { label: 'Unit Price', value: `${Number(viewPart.row.UnitPrice || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Quantity In Stock', value: viewPart.row.Quantity },
+                  { label: 'Reorder Level', value: viewPart.row.ReorderLevel },
+                  { label: 'Stock Status', value: Number(viewPart.row.Quantity) <= Number(viewPart.row.ReorderLevel || 0) ? 'Low Stock' : 'In Stock' },
+                ]}
               />
               <Modal id="partModal" title={partForm.SparePartID ? 'Edit Spare Part' : 'Add Spare Part'} icon="bi-boxes">
                 <form onSubmit={partCrud.save}>
@@ -230,20 +247,29 @@ export default function StockManager() {
             <>
               <DataTable
                 title="Suppliers" icon="bi-truck" addLabel="Add Supplier" onAdd={supplierCrud.openAdd} searchPlaceholder="Search suppliers..."
-                columns={[{ key: 'CompanyName', label: 'Supplier' }, { key: 'ContactPerson', label: 'Contact Person' }, { key: 'Phone', label: 'Phone' }, { key: 'Email', label: 'Email' }]}
+                columns={[{ key: 'CompanyName', label: 'Supplier' }, { key: 'Phone', label: 'Phone' }, { key: 'Email', label: 'Email' }, { key: 'Address', label: 'Address' }]}
                 rows={suppliers}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewSupplier.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => supplierCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => supplierCrud.remove(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
+              <DetailsModal
+                id="viewSupplierModal" title="Supplier Details" icon="bi-truck"
+                fields={viewSupplier.row && [
+                  { label: 'Company Name', value: viewSupplier.row.CompanyName },
+                  { label: 'Phone', value: viewSupplier.row.Phone },
+                  { label: 'Email', value: viewSupplier.row.Email },
+                  { label: 'Address', value: viewSupplier.row.Address },
+                ]}
+              />
               <Modal id="supplierModal" title={supplierForm.SupplierID ? 'Edit Supplier' : 'Add Supplier'} icon="bi-truck">
                 <form onSubmit={supplierCrud.save}>
                   <div className="row g-3">
                     <div className="col-md-6"><label className="form-label-custom">Supplier Name</label><input className="form-control form-control-custom" required value={supplierForm.CompanyName} onChange={(e) => setSupplierForm((f) => ({ ...f, CompanyName: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Contact Person</label><input className="form-control form-control-custom" value={supplierForm.ContactPerson} onChange={(e) => setSupplierForm((f) => ({ ...f, ContactPerson: e.target.value }))} /></div>
                     <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={supplierForm.Phone} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
                     <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={supplierForm.Email} onChange={(e) => setSupplierForm((f) => ({ ...f, Email: e.target.value }))} /></div>
                     <div className="col-12"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={supplierForm.Address} onChange={(e) => setSupplierForm((f) => ({ ...f, Address: e.target.value }))} /></div>
@@ -260,19 +286,40 @@ export default function StockManager() {
                 title="Purchase Orders" icon="bi-cart-check-fill" addLabel="Record Purchase" onAdd={openPurchase} searchPlaceholder="Search purchases..."
                 columns={[
                   { key: 'SparePartID', label: 'Part', render: (r) => partName(r.SparePartID) },
-                  { key: 'SupplierID', label: 'Supplier', render: (r) => supplierName(r.SupplierID) },
+                  { key: 'SupplierID', label: 'Supplier', render: (r) => r.SupplierName || supplierName(r.SupplierID) },
                   { key: 'Quantity', label: 'Quantity' },
                   { key: 'UnitPrice', label: 'Unit Cost' },
+                  { key: 'TotalAmount', label: 'Total (RWF)', render: (r) => Number(r.TotalAmount || 0).toLocaleString('en-US') },
                   { key: 'PurchaseDate', label: 'Date' },
+                  { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status || 'Pending'} okValues={['Received', 'Processed', 'Approved']} /> },
+                  { key: 'UserName', label: 'Recorded By', render: (r) => r.UserName || '-' },
                 ]}
                 rows={purchases}
                 renderActions={(r) => (
-                  <button className="btn-icon danger" onClick={async () => {
-                    if (!(await ConfirmDelete('purchase record', `Purchase #${r.PurchaseID}`))) return;
-                    const res = await inventoryApi.removePurchase(r.PurchaseID);
-                    if (res.success) { showToast('Purchase removed.', 'success'); loadAll(); }
-                  }}><i className="bi bi-trash"></i></button>
+                  <>
+                    <button className="btn-action view" title="View" onClick={() => viewPurchase.open(r)}><i className="bi bi-eye"></i></button>
+                    <button className="btn-action view" title="Print" onClick={() => { viewPurchase.open(r); setTimeout(() => printElementById('viewPurchaseModal-body', 'Purchase Details'), 300); }}><i className="bi bi-printer"></i></button>
+                    <button className="btn-icon danger" onClick={async () => {
+                      if (!(await ConfirmDelete('purchase record', `Purchase #${r.PurchaseID}`))) return;
+                      const res = await inventoryApi.removePurchase(r.PurchaseID);
+                      if (res.success) { showToast('Purchase removed.', 'success'); loadAll(); }
+                    }}><i className="bi bi-trash"></i></button>
+                  </>
                 )}
+              />
+              <DetailsModal
+                id="viewPurchaseModal" title="Purchase Details" icon="bi-cart-check-fill" printable
+                fields={viewPurchase.row && [
+                  { label: 'Purchase #', value: viewPurchase.row.PurchaseID },
+                  { label: 'Part', value: partName(viewPurchase.row.SparePartID) },
+                  { label: 'Supplier', value: viewPurchase.row.SupplierName || supplierName(viewPurchase.row.SupplierID) },
+                  { label: 'Quantity', value: viewPurchase.row.Quantity },
+                  { label: 'Unit Cost', value: `${Number(viewPurchase.row.UnitPrice || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Total Amount', value: `${Number(viewPurchase.row.TotalAmount || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Purchase Date', value: viewPurchase.row.PurchaseDate },
+                  { label: 'Status', value: viewPurchase.row.Status },
+                  { label: 'Recorded By', value: viewPurchase.row.UserName },
+                ]}
               />
               <Modal id="purchaseModal" title="Record Purchase" icon="bi-cart-check-fill">
                 <form onSubmit={savePurchase}>

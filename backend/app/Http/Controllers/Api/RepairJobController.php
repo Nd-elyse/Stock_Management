@@ -57,6 +57,7 @@ class RepairJobController extends Controller
         $job = RepairJob::create([
             'VehicleID' => $data['vehicle_id'],
             'MechanicID' => $data['mechanic_id'] ?? null,
+            'UserID' => auth()->id(),
             'StartDate' => $data['start_date'],
             'EndDate' => $data['end_date'] ?? null,
             'Status' => $data['status'] ?? 'Pending',
@@ -94,14 +95,13 @@ class RepairJobController extends Controller
         if (!$job) {
             return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
         }
-        $job->delete();
-        return response()->json(['success' => true, 'message' => 'Job removed successfully.']);
+        return $this->safeDelete($job, 'job');
     }
 
     public function diagnostics(Request $request, int $jobId)
     {
         if ($request->isMethod('get')) {
-            $diag = Diagnostic::where('JobID', $jobId)->orderByDesc('DiagnosticID')->first();
+            $diag = Diagnostic::with('mechanic')->where('JobID', $jobId)->orderByDesc('DiagnosticID')->first();
             return response()->json(['success' => true, 'data' => $diag]);
         }
 
@@ -110,7 +110,21 @@ class RepairJobController extends Controller
         if (!$job) {
             return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
         }
-        $diagnostic = Diagnostic::create(['JobID' => $jobId, 'Notes' => $data['notes']]);
+
+        $user = auth()->user();
+        if (!$user->MechanicID) {
+            return response()->json(['success' => false, 'message' => 'Only mechanics can record diagnostics.'], 403);
+        }
+        if ((int) $job->MechanicID !== (int) $user->MechanicID) {
+            return response()->json(['success' => false, 'message' => 'This job is not assigned to you.'], 403);
+        }
+
+        $diagnostic = Diagnostic::create([
+            'JobID' => $jobId,
+            'MechanicID' => $user->MechanicID,
+            'DiagnosticDate' => now()->toDateString(),
+            'Notes' => $data['notes'],
+        ]);
         return response()->json(['success' => true, 'message' => 'Diagnostics saved successfully.', 'data' => $diagnostic]);
     }
 }

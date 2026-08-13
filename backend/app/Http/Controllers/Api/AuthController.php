@@ -63,6 +63,7 @@ class AuthController extends Controller
         }
 
         $user->Status = 'Active';
+        $user->LastActivity = now();
         $user->save();
 
         $token = $this->issueToken($user);
@@ -120,6 +121,7 @@ class AuthController extends Controller
         }
         if ($user) {
             $user->Status = 'Inactive';
+            $user->LastActivity = now();
             $user->save();
         }
         return response()->json(['success' => true]);

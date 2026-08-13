@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
 import { useAuth, useToast } from '../../context';
 import { usersApi, jobsApi, inventoryApi, notificationsApi, contactApi, authApi, customersApi, billingApi } from '../../api';
 
 const NAV_SECTIONS = [
-  { title: 'Main', items: [{ key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' }] },
   {
     title: 'Main',
     items: [
+      { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
       { key: 'notifications', label: 'Notifications', icon: 'bi-bell-fill' },
       { key: 'messages', label: 'Messages', icon: 'bi-envelope-fill' },
     ],
@@ -142,6 +142,7 @@ export default function Admin() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [reportTab, setReportTab] = useState('repairs');
+  const viewPart = useViewModal('viewPartModal');
 
   const [users, setUsers] = useState([]);
   const [mechanics, setMechanics] = useState([]);
@@ -732,6 +733,21 @@ export default function Admin() {
                 ]}
                 rows={spareParts}
                 emptyText="No spare parts found. Inventory is managed by the Stock Manager."
+                renderActions={(r) => (
+                  <button className="btn-action view" title="View" onClick={() => viewPart.open(r)}><i className="bi bi-eye"></i></button>
+                )}
+              />
+              <DetailsModal
+                id="viewPartModal" title="Spare Part Details" icon="bi-boxes"
+                fields={viewPart.row && [
+                  { label: 'Part Name', value: viewPart.row.PartName },
+                  { label: 'Category', value: viewPart.row.CategoryName },
+                  { label: 'Supplier', value: viewPart.row.SupplierName },
+                  { label: 'Unit Price', value: `${Number(viewPart.row.UnitPrice || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Quantity In Stock', value: viewPart.row.Quantity },
+                  { label: 'Reorder Level', value: viewPart.row.ReorderLevel },
+                  { label: 'Stock Status', value: Number(viewPart.row.Quantity) <= Number(viewPart.row.ReorderLevel) ? 'Low Stock' : 'In Stock' },
+                ]}
               />
             </>
           )}

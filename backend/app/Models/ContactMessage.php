@@ -8,6 +8,6 @@ class ContactMessage extends Model
     protected $table = 'contactmessages';
     protected $primaryKey = 'MessageID';
     public $timestamps = false;
-    protected $fillable = ['FullName', 'Email', 'Subject', 'Message', 'IsRead'];
+    protected $fillable = ['FullName', 'Email', 'Phone', 'Subject', 'Message', 'IsRead'];
     protected $casts = ['IsRead' => 'boolean'];
 }

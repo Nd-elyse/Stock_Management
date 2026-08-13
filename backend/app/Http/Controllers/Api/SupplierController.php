@@ -54,7 +54,6 @@ class SupplierController extends Controller
     {
         $supplier = Supplier::find($id);
         if (!$supplier) return response()->json(['success' => false, 'message' => 'Supplier not found.'], 404);
-        $supplier->delete();
-        return response()->json(['success' => true, 'message' => 'Supplier deleted.']);
+        return $this->safeDelete($supplier, 'supplier');
     }
 }

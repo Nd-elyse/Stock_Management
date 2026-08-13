@@ -69,10 +69,20 @@ class MechanicController extends Controller
         if (!$mechanic) {
             return response()->json(['success' => false, 'message' => 'Mechanic not found.'], 404);
         }
-        DB::transaction(function () use ($mechanic) {
-            \App\Models\User::where('MechanicID', $mechanic->MechanicID)->update(['MechanicID' => null]);
-            $mechanic->delete();
-        });
-        return response()->json(['success' => true, 'message' => 'Mechanic deleted.']);
+
+        // Block like the old app did, rather than silently cascading:
+        // repairjobs/diagnostics/sparepartrequests all reference this mechanic,
+        // and diagnostics/sparepartrequests cascade-delete at the DB level -
+        // deleting them here without asking would quietly wipe job history.
+        $hasJobs = \App\Models\RepairJob::where('MechanicID', $id)->exists();
+        $hasUser = \App\Models\User::where('MechanicID', $id)->exists();
+        if ($hasJobs || $hasUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete: this mechanic has linked repair jobs or a user account. Remove those first.',
+            ], 409);
+        }
+
+        return $this->safeDelete($mechanic, 'mechanic');
     }
 }

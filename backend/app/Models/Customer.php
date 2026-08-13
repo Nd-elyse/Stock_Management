@@ -8,7 +8,7 @@ class Customer extends Model
     protected $table = 'customers';
     protected $primaryKey = 'CustomerID';
     public $timestamps = false;
-    protected $fillable = ['FullName', 'Phone', 'Email', 'Address'];
+    protected $fillable = ['FullName', 'Phone', 'Email', 'Address', 'RegistrationDate'];
 
     public function vehicles()
     {

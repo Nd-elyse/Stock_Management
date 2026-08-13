@@ -30,6 +30,7 @@ class CustomerController extends Controller
             'Phone' => $data['phone'],
             'Email' => $data['email'] ?? null,
             'Address' => $data['address'] ?? null,
+            'RegistrationDate' => now()->toDateString(),
         ]);
         return response()->json(['success' => true, 'message' => 'Customer added.', 'data' => $customer]);
     }
@@ -62,7 +63,6 @@ class CustomerController extends Controller
         if (!$customer) {
             return response()->json(['success' => false, 'message' => 'Customer not found.'], 404);
         }
-        $customer->delete();
-        return response()->json(['success' => true, 'message' => 'Customer deleted.']);
+        return $this->safeDelete($customer, 'customer');
     }
 }

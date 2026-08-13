@@ -122,9 +122,10 @@ class InvoiceController extends Controller
                     'UserID' => auth()->id(),
                     'TransactionType' => 'Sale',
                     'Quantity' => $item['quantity'],
+                    'TransactionDate' => now()->toDateString(),
+                    'UnitPrice' => $item['price'] ?? $part->UnitPrice,
                     'BeforeQty' => $before,
                     'AfterQty' => $after,
-                    'Reference' => 'Invoice #' . $invoice->InvoiceID,
                 ]);
             }
 
@@ -178,7 +179,6 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::find($id);
         if (!$invoice) return response()->json(['success' => false, 'message' => 'Invoice not found.'], 404);
-        $invoice->delete();
-        return response()->json(['success' => true, 'message' => 'Invoice deleted.']);
+        return $this->safeDelete($invoice, 'invoice');
     }
 }

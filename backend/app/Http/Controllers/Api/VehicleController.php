@@ -29,7 +29,7 @@ class VehicleController extends Controller
             'plate_number' => 'required|string|max:50|unique:vehicles,PlateNumber',
             'manufacturer' => 'required|string|max:255',
             'model' => 'required|string|max:255',
-            'year' => 'required|string|max:4',
+            'year' => 'required|max:4',
             'chassis_number' => 'nullable|string|max:100',
             'engine_number' => 'nullable|string|max:100',
             'fuel_type' => 'nullable|string',
@@ -62,7 +62,7 @@ class VehicleController extends Controller
             'plate_number' => 'sometimes|string|max:50|unique:vehicles,PlateNumber,' . $id . ',VehicleID',
             'manufacturer' => 'sometimes|string|max:255',
             'model' => 'sometimes|string|max:255',
-            'year' => 'sometimes|string|max:4',
+            'year' => 'sometimes|max:4',
             'chassis_number' => 'nullable|string|max:100',
             'engine_number' => 'nullable|string|max:100',
             'fuel_type' => 'nullable|string',
@@ -91,7 +91,6 @@ class VehicleController extends Controller
         if (!$vehicle) {
             return response()->json(['success' => false, 'message' => 'Vehicle not found.'], 404);
         }
-        $vehicle->delete();
-        return response()->json(['success' => true, 'message' => 'Vehicle deleted.']);
+        return $this->safeDelete($vehicle, 'vehicle');
     }
 }

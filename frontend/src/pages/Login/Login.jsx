@@ -4,13 +4,6 @@ import { useAuth, useToast } from '../../context';
 import { authApi, contactApi } from '../../api';
 import './Login.css';
 
-const ROLES = [
-  { key: 'admin', label: 'Admin', icon: 'bi-shield-fill-check', apiRole: 'Admin' },
-  { key: 'receptionist', label: 'Reception', icon: 'bi-person-badge', apiRole: 'Receptionist' },
-  { key: 'mechanic', label: 'Mechanic', icon: 'bi-wrench', apiRole: 'Mechanic' },
-  { key: 'stock', label: 'Stock', icon: 'bi-boxes', apiRole: 'Stock Manager' },
-];
-
 function closeModal(id) {
   const el = document.getElementById(id);
   if (window.bootstrap && el) {
@@ -30,7 +23,6 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('session') === 'expired';
 
-  const [selectedRole, setSelectedRole] = useState('admin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -64,8 +56,7 @@ export default function Login() {
       return;
     }
     setSubmitting(true);
-    const roleObj = ROLES.find((r) => r.key === selectedRole);
-    const result = await login(username.trim(), password, roleObj.apiRole, rememberMe);
+    const result = await login(username.trim(), password);
     setSubmitting(false);
     if (result.requiresOtp) {
       openModal('otpModal');
@@ -198,15 +189,7 @@ export default function Login() {
               </div>
               <h3 className="mb-0">Welcome Back</h3>
             </div>
-            <p className="auth-subtitle">Select your role and sign in to continue</p>
-
-            <div className="role-selector" id="roleSelector">
-              {ROLES.map((r) => (
-                <div key={r.key} className={`role-chip${selectedRole === r.key ? ' active' : ''}`} onClick={() => setSelectedRole(r.key)}>
-                  <i className={`bi ${r.icon}`}></i> {r.label}
-                </div>
-              ))}
-            </div>
+            <p className="auth-subtitle">Sign in to continue</p>
 
             {loginError && (
               <div className="login-alert show danger">

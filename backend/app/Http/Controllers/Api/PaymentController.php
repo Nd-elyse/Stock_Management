@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 
@@ -23,20 +24,50 @@ class PaymentController extends Controller
         return response()->json(['success' => true, 'data' => $payments]);
     }
 
+    /** Pending / Partial / Paid, derived from what's actually been paid so far - never trust the client's chosen status. */
+    private function deriveStatus(float $totalPaidAfter, float $invoiceTotal): string
+    {
+        if ($totalPaidAfter <= 0) return 'Pending';
+        if ($totalPaidAfter + 0.01 < $invoiceTotal) return 'Partial';
+        return 'Paid';
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
             'invoice_id' => 'required|integer|exists:invoices,InvoiceID',
             'amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|string',
-            'payment_status' => 'required|string|in:Paid,Pending,Partial',
             'payment_date' => 'required|date',
         ]);
+
+        $invoice = Invoice::find($data['invoice_id']);
+        if (!$invoice) {
+            return response()->json(['success' => false, 'message' => 'Invoice not found.'], 404);
+        }
+
+        // Block an exact duplicate (same invoice/amount/method/day) - guards
+        // against a double-click or resubmitted request creating two payments.
+        $dup = Payment::where('InvoiceID', $data['invoice_id'])
+            ->where('Amount', $data['amount'])
+            ->where('PaymentMethod', $data['payment_method'])
+            ->where('PaymentDate', $data['payment_date'])
+            ->exists();
+        if ($dup) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An identical payment for this invoice was just recorded. If this is a separate payment, please confirm the amount.',
+            ], 409);
+        }
+
+        $alreadyPaid = (float) Payment::where('InvoiceID', $data['invoice_id'])->sum('Amount');
+        $status = $this->deriveStatus($alreadyPaid + (float) $data['amount'], (float) $invoice->TotalAmount);
+
         $payment = Payment::create([
             'InvoiceID' => $data['invoice_id'],
             'Amount' => $data['amount'],
             'PaymentMethod' => $data['payment_method'],
-            'PaymentStatus' => $data['payment_status'],
+            'PaymentStatus' => $status,
             'PaymentDate' => $data['payment_date'],
         ]);
         return response()->json(['success' => true, 'message' => 'Payment recorded.', 'data' => $payment]);
@@ -49,15 +80,23 @@ class PaymentController extends Controller
         $data = $request->validate([
             'amount' => 'sometimes|numeric|min:0.01',
             'payment_method' => 'sometimes|string',
-            'payment_status' => 'sometimes|string|in:Paid,Pending,Partial',
             'payment_date' => 'sometimes|date',
         ]);
         $payment->fill(array_filter([
             'Amount' => $data['amount'] ?? null,
             'PaymentMethod' => $data['payment_method'] ?? null,
-            'PaymentStatus' => $data['payment_status'] ?? null,
             'PaymentDate' => $data['payment_date'] ?? null,
         ], fn ($v) => $v !== null));
+
+        // Re-derive status for this invoice's payments after the edit.
+        $invoice = $payment->invoice;
+        if ($invoice) {
+            $totalPaid = (float) Payment::where('InvoiceID', $payment->InvoiceID)
+                ->where('PaymentID', '!=', $payment->PaymentID)
+                ->sum('Amount') + (float) $payment->Amount;
+            $payment->PaymentStatus = $this->deriveStatus($totalPaid, (float) $invoice->TotalAmount);
+        }
+
         $payment->save();
         return response()->json(['success' => true, 'message' => 'Payment updated.', 'data' => $payment]);
     }
@@ -66,7 +105,6 @@ class PaymentController extends Controller
     {
         $payment = Payment::find($id);
         if (!$payment) return response()->json(['success' => false, 'message' => 'Payment not found.'], 404);
-        $payment->delete();
-        return response()->json(['success' => true, 'message' => 'Payment deleted.']);
+        return $this->safeDelete($payment, 'payment');
     }
 }

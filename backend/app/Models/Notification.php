@@ -8,7 +8,7 @@ class Notification extends Model
     protected $table = 'notifications';
     protected $primaryKey = 'NotificationID';
     public $timestamps = false;
-    protected $fillable = ['UserID', 'Type', 'Message', 'Link', 'IsRead'];
+    protected $fillable = ['UserID', 'Type', 'Message', 'Link', 'IsRead', 'Status', 'ResolvedAt'];
     protected $casts = ['IsRead' => 'boolean'];
 
     public function user()

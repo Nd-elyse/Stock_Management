@@ -20,9 +20,11 @@ class ContactMessageController extends Controller
         $msg = ContactMessage::create([
             'FullName' => $data['full_name'],
             'Email' => $data['email'],
+            'Phone' => $data['phone'] ?? null,
             'Subject' => $data['subject'] ?? 'Account Access Request',
             'Message' => $data['message'],
         ]);
+        $this->notifyRole('Admin', 'contact', "New contact message from {$data['full_name']}", '#messages');
         return response()->json(['success' => true, 'message' => 'Message sent. We will get back to you soon.', 'data' => $msg]);
     }
 
@@ -50,7 +52,6 @@ class ContactMessageController extends Controller
     {
         $m = ContactMessage::find($id);
         if (!$m) return response()->json(['success' => false, 'message' => 'Message not found.'], 404);
-        $m->delete();
-        return response()->json(['success' => true, 'message' => 'Message deleted.']);
+        return $this->safeDelete($m, 'message');
     }
 }

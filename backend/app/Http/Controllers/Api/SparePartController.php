@@ -49,9 +49,10 @@ class SparePartController extends Controller
                     'UserID' => auth()->id(),
                     'TransactionType' => 'Purchase',
                     'Quantity' => $data['quantity'],
+                    'TransactionDate' => now()->toDateString(),
+                    'UnitPrice' => $part->UnitPrice,
                     'BeforeQty' => 0,
                     'AfterQty' => $data['quantity'],
-                    'Reference' => 'Initial stock',
                 ]);
             }
             return response()->json(['success' => true, 'message' => 'Spare part added.', 'data' => $part]);
@@ -88,8 +89,7 @@ class SparePartController extends Controller
         if (!$part) {
             return response()->json(['success' => false, 'message' => 'Spare part not found.'], 404);
         }
-        $part->delete();
-        return response()->json(['success' => true, 'message' => 'Spare part deleted.']);
+        return $this->safeDelete($part, 'spare part');
     }
 
     /** Stock in / out / manual adjustment - keeps spareparts.Quantity and the stocktransactions ledger in sync. */
@@ -102,7 +102,6 @@ class SparePartController extends Controller
         $data = $request->validate([
             'type' => 'required|string|in:Purchase,Usage,Adjustment,Sale',
             'quantity' => 'required|integer|min:1',
-            'reference' => 'nullable|string|max:255',
         ]);
 
         $before = $part->Quantity;
@@ -121,9 +120,10 @@ class SparePartController extends Controller
                 'UserID' => auth()->id(),
                 'TransactionType' => $data['type'],
                 'Quantity' => $data['quantity'],
+                'TransactionDate' => now()->toDateString(),
+                'UnitPrice' => $part->UnitPrice,
                 'BeforeQty' => $before,
                 'AfterQty' => $after,
-                'Reference' => $data['reference'] ?? null,
             ]);
 
             return response()->json(['success' => true, 'message' => 'Stock updated.', 'data' => ['part' => $part, 'transaction' => $txn]]);

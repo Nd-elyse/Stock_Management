@@ -20,7 +20,6 @@ class StockTransactionController extends Controller
     {
         $txn = StockTransaction::find($id);
         if (!$txn) return response()->json(['success' => false, 'message' => 'Transaction not found.'], 404);
-        $txn->delete();
-        return response()->json(['success' => true, 'message' => 'Transaction removed.']);
+        return $this->safeDelete($txn, 'transaction');
     }
 }

@@ -33,7 +33,6 @@ class CategoryController extends Controller
     {
         $cat = Category::find($id);
         if (!$cat) return response()->json(['success' => false, 'message' => 'Category not found.'], 404);
-        $cat->delete();
-        return response()->json(['success' => true, 'message' => 'Category deleted.']);
+        return $this->safeDelete($cat, 'category');
     }
 }

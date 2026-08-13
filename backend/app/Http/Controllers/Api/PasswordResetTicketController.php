@@ -34,7 +34,6 @@ class PasswordResetTicketController extends Controller
     {
         $ticket = PasswordResetTicket::find($id);
         if (!$ticket) return response()->json(['success' => false, 'message' => 'Request not found.'], 404);
-        $ticket->delete();
-        return response()->json(['success' => true, 'message' => 'Request removed.']);
+        return $this->safeDelete($ticket, 'request');
     }
 }

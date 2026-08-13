@@ -122,7 +122,6 @@ class UserController extends Controller
         if ($user->UserID === auth()->id()) {
             return response()->json(['success' => false, 'message' => 'You cannot delete your own account while logged in.'], 422);
         }
-        $user->delete();
-        return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
+        return $this->safeDelete($user, 'user');
     }
 }

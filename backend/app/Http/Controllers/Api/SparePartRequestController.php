@@ -46,6 +46,8 @@ class SparePartRequestController extends Controller
             'Reason' => $data['reason'],
             'Status' => 'Pending',
         ]);
+        $partName = SparePart::find($data['spare_part_id'])->PartName ?? 'a part';
+        $this->notifyRole('Stock Manager', 'part_request', "New spare part request #{$reqRow->RequestID} for {$partName} (x{$data['quantity_requested']})", '#requests');
         return response()->json(['success' => true, 'message' => 'Request submitted successfully.', 'data' => $reqRow]);
     }
 
@@ -71,13 +73,19 @@ class SparePartRequestController extends Controller
                 'UserID' => auth()->id(),
                 'TransactionType' => 'Usage',
                 'Quantity' => $reqRow->QuantityRequested,
+                'TransactionDate' => now()->toDateString(),
+                'UnitPrice' => $part->UnitPrice,
                 'BeforeQty' => $before,
                 'AfterQty' => $after,
-                'Reference' => 'Request #' . $reqRow->RequestID,
             ]);
 
             $reqRow->Status = 'Fulfilled';
+            $reqRow->DecidedAt = now()->toDateString();
+            $reqRow->DecidedByUserID = auth()->id();
             $reqRow->save();
+
+            $mechanicUserId = \App\Models\User::where('MechanicID', $reqRow->MechanicID)->value('UserID');
+            $this->notifyUser($mechanicUserId, 'part_request', "Your spare part request #{$reqRow->RequestID} has been approved and fulfilled.", '#requests');
 
             return response()->json(['success' => true, 'message' => 'Request approved and stock updated.', 'data' => $reqRow]);
         });
@@ -92,7 +100,14 @@ class SparePartRequestController extends Controller
         if (!empty($data['reason'])) {
             $reqRow->Reason = $reqRow->Reason . ' | Rejected: ' . $data['reason'];
         }
+        $reqRow->DecidedAt = now()->toDateString();
+        $reqRow->DecidedByUserID = auth()->id();
         $reqRow->save();
+
+        $mechanicUserId = \App\Models\User::where('MechanicID', $reqRow->MechanicID)->value('UserID');
+        $reasonText = !empty($data['reason']) ? " Reason: {$data['reason']}" : '';
+        $this->notifyUser($mechanicUserId, 'part_request', "Your spare part request #{$reqRow->RequestID} has been rejected.{$reasonText}", '#requests');
+
         return response()->json(['success' => true, 'message' => 'Request rejected.', 'data' => $reqRow]);
     }
 
@@ -100,7 +115,6 @@ class SparePartRequestController extends Controller
     {
         $reqRow = SparePartRequest::find($id);
         if (!$reqRow) return response()->json(['success' => false, 'message' => 'Request not found.'], 404);
-        $reqRow->delete();
-        return response()->json(['success' => true, 'message' => 'Request cancelled successfully.']);
+        return $this->safeDelete($reqRow, 'request');
     }
 }

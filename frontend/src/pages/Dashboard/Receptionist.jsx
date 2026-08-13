@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
 import { useAuth, useToast } from '../../context';
 import { customersApi, jobsApi, billingApi, notificationsApi, authApi } from '../../api';
 
@@ -121,6 +121,12 @@ export default function Receptionist() {
     showBsModal('invoiceModal');
   };
 
+  const viewCustomer = useViewModal('viewCustomerModal');
+  const viewVehicle = useViewModal('viewVehicleModal');
+  const viewJob = useViewModal('viewJobModal');
+  const viewInvoice = useViewModal('viewInvoiceModal');
+  const viewPayment = useViewModal('viewPaymentModal');
+
   const customerCrud = withCrud('Customer', { save: customersApi.saveCustomer, remove: customersApi.removeCustomer }, customerForm, setCustomerForm, emptyCustomer, 'customerModal', loadAll);
   const vehicleCrud = withCrud('Vehicle', { save: customersApi.saveVehicle, remove: customersApi.removeVehicle }, vehicleForm, setVehicleForm, emptyVehicle, 'vehicleModal', loadAll);
   const jobCrud = withCrud('Repair job', { save: jobsApi.saveJob, remove: jobsApi.removeJob }, jobForm, setJobForm, emptyJob, 'jobModal', loadAll);
@@ -170,10 +176,22 @@ export default function Receptionist() {
                 rows={customers}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewCustomer.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => customerCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => customerCrud.remove(r, 'CustomerID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewCustomerModal" title="Customer Details" icon="bi-person-lines-fill"
+                fields={viewCustomer.row && [
+                  { label: 'Full Name', value: viewCustomer.row.FullName },
+                  { label: 'Phone', value: viewCustomer.row.Phone },
+                  { label: 'Email', value: viewCustomer.row.Email },
+                  { label: 'Address', value: viewCustomer.row.Address },
+                  { label: 'Registered', value: viewCustomer.row.RegistrationDate },
+                  { label: 'Vehicles Owned', value: viewCustomer.row.VehicleCount },
+                ]}
               />
               <Modal id="customerModal" title={customerForm.CustomerID ? 'Edit Customer' : 'Add Customer'} icon="bi-person-plus">
                 <form onSubmit={customerCrud.save}>
@@ -200,10 +218,26 @@ export default function Receptionist() {
                 rows={vehicles}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewVehicle.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => vehicleCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => vehicleCrud.remove(r, 'VehicleID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewVehicleModal" title="Vehicle Details" icon="bi-car-front-fill"
+                fields={viewVehicle.row && [
+                  { label: 'Plate Number', value: viewVehicle.row.PlateNumber },
+                  { label: 'Owner', value: customerName(viewVehicle.row.CustomerID) },
+                  { label: 'Make', value: viewVehicle.row.Manufacturer },
+                  { label: 'Model', value: viewVehicle.row.Model },
+                  { label: 'Year', value: viewVehicle.row.Year },
+                  { label: 'Chassis Number', value: viewVehicle.row.ChassisNumber },
+                  { label: 'Engine Number', value: viewVehicle.row.EngineNumber },
+                  { label: 'Fuel Type', value: viewVehicle.row.FuelType },
+                  { label: 'Transmission', value: viewVehicle.row.Transmission },
+                  { label: 'Mileage', value: viewVehicle.row.Mileage },
+                ]}
               />
               <Modal id="vehicleModal" title={vehicleForm.VehicleID ? 'Edit Vehicle' : 'Add Vehicle'} icon="bi-car-front">
                 <form onSubmit={vehicleCrud.save}>
@@ -253,10 +287,24 @@ export default function Receptionist() {
                 rows={jobs}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewJob.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => jobCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => jobCrud.remove(r, 'JobID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewJobModal" title="Repair Job Details" icon="bi-wrench-adjustable"
+                fields={viewJob.row && [
+                  { label: 'Job #', value: viewJob.row.JobID },
+                  { label: 'Vehicle', value: vehiclePlate(viewJob.row.VehicleID) },
+                  { label: 'Customer', value: viewJob.row.CustomerName || customerName(viewJob.row.CustomerID) },
+                  { label: 'Mechanic', value: mechanicName(viewJob.row.MechanicID) },
+                  { label: 'Start Date', value: viewJob.row.StartDate },
+                  { label: 'End Date', value: viewJob.row.EndDate },
+                  { label: 'Description', value: viewJob.row.Description },
+                  { label: 'Status', value: viewJob.row.Status },
+                ]}
               />
               <Modal id="jobModal" title={jobForm.JobID ? 'Edit Repair Job' : 'New Repair Job'} icon="bi-wrench-adjustable">
                 <form onSubmit={jobCrud.save}>
@@ -301,10 +349,28 @@ export default function Receptionist() {
                 rows={invoices}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View / Print" onClick={() => viewInvoice.open(r)}><i className="bi bi-printer"></i></button>
                     <button className="btn-icon" onClick={() => openEditInvoice(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => invoiceCrud.remove(r, 'InvoiceID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewInvoiceModal" title="Invoice Details" icon="bi-receipt-cutoff" printable
+                fields={viewInvoice.row && [
+                  { label: 'Invoice #', value: viewInvoice.row.InvoiceID },
+                  { label: 'Customer', value: viewInvoice.row.CustomerName || customerName(viewInvoice.row.CustomerID) },
+                  { label: 'Phone', value: viewInvoice.row.CustomerPhone },
+                  { label: 'Vehicle', value: viewInvoice.row.PlateNumber },
+                  { label: 'Invoice Date', value: viewInvoice.row.InvoiceDate },
+                  { label: 'Labour Charges', value: `${Number(viewInvoice.row.LabourCharges || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Spare Parts Cost', value: `${Number(viewInvoice.row.SparePartsCost || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Taxes', value: `${Number(viewInvoice.row.Taxes || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Discounts', value: `${Number(viewInvoice.row.Discounts || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Total Amount', value: `${Number(viewInvoice.row.TotalAmount || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Total Paid', value: `${Number(viewInvoice.row.TotalPaid || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Payment Status', value: viewInvoice.row.PaymentStatus },
+                ]}
               />
               <Modal id="invoiceModal" title={invoiceForm.InvoiceID ? 'Edit Invoice' : 'Add Invoice'} icon="bi-receipt-cutoff">
                 <form onSubmit={invoiceCrud.save}>
@@ -380,10 +446,22 @@ export default function Receptionist() {
                 rows={payments}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewPayment.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => paymentCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => paymentCrud.remove(r, 'PaymentID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewPaymentModal" title="Payment Details" icon="bi-cash-coin"
+                fields={viewPayment.row && [
+                  { label: 'Payment #', value: viewPayment.row.PaymentID },
+                  { label: 'Invoice #', value: viewPayment.row.InvoiceID },
+                  { label: 'Amount Paid', value: `${Number(viewPayment.row.Amount || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Method', value: viewPayment.row.PaymentMethod },
+                  { label: 'Status', value: viewPayment.row.PaymentStatus },
+                  { label: 'Date', value: viewPayment.row.PaymentDate },
+                ]}
               />
               <Modal id="paymentModal" title={paymentForm.PaymentID ? 'Edit Payment' : 'Record Payment'} icon="bi-cash-coin">
                 <form onSubmit={paymentCrud.save}>

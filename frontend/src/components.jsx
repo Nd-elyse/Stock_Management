@@ -275,8 +275,9 @@ export function StatCard({ icon, color = 'blue', value, label, colClass = 'col-6
    ============================================================ */
 export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLabel, onAdd, renderActions, emptyText = 'No records found.' }) {
   const [query, setQuery] = useState('');
+  const safeRows = rows || [];
 
-  const filtered = rows.filter((row) => {
+  const filtered = safeRows.filter((row) => {
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return columns.some((c) => String(c.render ? '' : row[c.key] ?? '').toLowerCase().includes(q)) || JSON.stringify(row).toLowerCase().includes(q);
@@ -329,6 +330,78 @@ export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLa
   );
 }
 
+/* ============================================================
+   VIEW-DETAILS MODAL (with optional Print)
+   ------------------------------------------------------------
+   Reusable read-only "View" popup used across every table in the
+   app (Customers, Vehicles, Jobs, Payments, Spare Parts, Suppliers,
+   Purchases, ...), mirroring the old openDetailsModal()/
+   printModalContent() pair from the original PHP admin.
+   fields: [{ label, value }] - falsy entries are skipped.
+   ============================================================ */
+export function printElementById(bodyId, title) {
+  const body = document.getElementById(bodyId);
+  if (!body) return;
+  const win = window.open('', 'PRINT', 'height=650,width=900,top=100,left=150');
+  if (!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><title>${title || 'Print'}</title><style>
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;padding:24px;}
+    h5{margin:0 0 12px;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #e5e7eb;font-size:0.92rem;}
+    th{width:38%;color:#6b7280;font-weight:600;}
+  </style></head><body>`);
+  win.document.write(`<h5>${title || ''}</h5>`);
+  win.document.write(body.innerHTML);
+  win.document.write('</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 250);
+}
+
+export function DetailsModal({ id, title, icon = 'bi-eye', fields, printable = false }) {
+  const bodyId = `${id}-body`;
+  const safeFields = fields || [];
+  return (
+    <div className="modal fade modal-custom" id={id} tabIndex="-1">
+      <div className="modal-dialog modal-dialog-centered">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title"><i className={`bi ${icon}`} style={{ color: 'var(--primary-blue)' }}></i> {title}</h5>
+            <button type="button" className="btn-close no-print" data-bs-dismiss="modal"></button>
+          </div>
+          <div className="modal-body" id={bodyId}>
+            <table className="table table-borderless mb-0">
+              <tbody>
+                {safeFields.filter(Boolean).map((f, i) => (
+                  <tr key={i}>
+                    <th style={{ width: '40%', color: 'var(--text-muted)', fontWeight: 600 }}>{f.label}</th>
+                    <td>{f.value === null || f.value === undefined || f.value === '' ? '-' : f.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {printable && (
+            <div className="modal-footer no-print">
+              <button type="button" className="btn-blue btn-sm" onClick={() => printElementById(bodyId, title)}>
+                <i className="bi bi-printer"></i> Print
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Small helper: `const view = useViewModal('viewCustomerModal'); view.open(row)` then render `<DetailsModal id="viewCustomerModal" fields={...(view.row)} />` */
+export function useViewModal(modalId) {
+  const [row, setRow] = useState(null);
+  const open = (r) => { setRow(r); showBsModal(modalId); };
+  return { row, open };
+}
+
 export function StatusBadge({ status, okValues = ['Active', 'Paid', 'Delivered', 'Approved'], lowValues = ['Inactive', 'Cancelled', 'Rejected'] }) {
   let cls = 'badge-status';
   if (okValues.includes(status)) cls += ' badge-ok';
@@ -361,8 +434,8 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
           <div className="brand-text">Garage<span>Manager</span><small>{brandSub}</small></div>
         </div>
         <nav className="sidebar-nav">
-          {navSections.map((section) => (
-            <React.Fragment key={section.title}>
+          {navSections.map((section, sIdx) => (
+            <React.Fragment key={`${section.title}-${sIdx}`}>
               <div className="nav-section">{section.title}</div>
               {section.items.map((item) => (
                 <a
