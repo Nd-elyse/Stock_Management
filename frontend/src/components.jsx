@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context';
 
@@ -431,15 +431,69 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
   const { logout } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
+  const userToggleRef = useRef(null);
+  const userMenuListRef = useRef(null);
+  const [userMenuStyle, setUserMenuStyle] = useState({ visibility: 'hidden' });
 
   useEffect(() => {
     if (!userMenuOpen) return;
     const onDocClick = (e) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
     };
+    const onKeyDown = (e) => { if (e.key === 'Escape') setUserMenuOpen(false); };
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [userMenuOpen]);
+
+  // Keep the profile menu pinned to the right of the sidebar, fully inside the
+  // viewport, regardless of the sidebar's own clipping/overflow rules.
+  useLayoutEffect(() => {
+    if (!userMenuOpen) return;
+    const GAP = 10;
+    const EDGE = 8;
+
+    const positionMenu = () => {
+      const toggleEl = userToggleRef.current;
+      const menuEl = userMenuListRef.current;
+      if (!toggleEl || !menuEl) return;
+      const toggleRect = toggleEl.getBoundingClientRect();
+      const menuRect = menuEl.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+
+      // Prefer the right side of the nav bar; flip to the left if it wouldn't fit.
+      let left = toggleRect.right + GAP;
+      if (left + menuRect.width > viewportW - EDGE) {
+        left = Math.max(EDGE, toggleRect.left - menuRect.width - GAP);
+      }
+
+      // Align with the toggle vertically, then clamp so it never runs off-screen.
+      let top = toggleRect.top;
+      if (top + menuRect.height > viewportH - EDGE) {
+        top = viewportH - menuRect.height - EDGE;
+      }
+      if (top < EDGE) top = EDGE;
+
+      setUserMenuStyle({ position: 'fixed', top: `${top}px`, left: `${left}px`, visibility: 'visible' });
+    };
+
+    positionMenu();
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, true);
+    return () => {
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
+    };
+  }, [userMenuOpen]);
+
+  useEffect(() => {
+    if (!userMenuOpen) setUserMenuStyle({ visibility: 'hidden' });
+  }, [userMenuOpen]);
+
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -478,14 +532,18 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
         </nav>
         <div className="sidebar-footer">
           <div className={`dropdown${userMenuOpen ? ' show' : ''}`} ref={userMenuRef}>
-            <div className="user-info" onClick={() => setUserMenuOpen((v) => !v)} aria-expanded={userMenuOpen} role="button">
+            <div className="user-info" ref={userToggleRef} onClick={() => setUserMenuOpen((v) => !v)} aria-expanded={userMenuOpen} role="button">
               <div className="user-avatar">{(userName || 'US').substring(0, 2).toUpperCase()}</div>
               <div>
                 <div className="user-name">{userName}</div>
                 <div className="user-role">{userRole}</div>
               </div>
             </div>
-            <ul className={`dropdown-menu${userMenuOpen ? ' show' : ''}`}>
+            <ul
+              className={`dropdown-menu${userMenuOpen ? ' show' : ''}`}
+              ref={userMenuListRef}
+              style={userMenuStyle}
+            >
               <li><a className="dropdown-item" href="#top" onClick={(e) => { e.preventDefault(); setUserMenuOpen(false); showBsModal('profileModal'); }}><i className="bi bi-gear"></i> Settings</a></li>
               <li><hr className="dropdown-divider" /></li>
               <li><a className="dropdown-item" href="#top" onClick={(e) => { setUserMenuOpen(false); handleLogout(e); }}><i className="bi bi-box-arrow-right"></i> Logout</a></li>
@@ -493,6 +551,7 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
           </div>
         </div>
       </aside>
+
 
       <div className="dashboard-main">
         <div className="dashboard-topbar">
