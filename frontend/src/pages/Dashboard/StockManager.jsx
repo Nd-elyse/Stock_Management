@@ -45,7 +45,7 @@ export default function StockManager() {
   const [categoryForm, setCategoryForm] = useState(emptyCategory);
   const [supplierForm, setSupplierForm] = useState(emptySupplier);
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchase);
-  const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', current_password: '', new_password: '', confirm_password: '' });
+  const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '', current_password: '', new_password: '', confirm_password: '' });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -195,24 +195,24 @@ export default function StockManager() {
               <Modal id="partModal" title={partForm.SparePartID ? 'Edit Spare Part' : 'Add Spare Part'} icon="bi-boxes">
                 <form onSubmit={partCrud.save}>
                   <div className="row g-3">
-                    <div className="col-md-6"><label className="form-label-custom">Part Name</label><input className="form-control form-control-custom" required value={partForm.PartName} onChange={(e) => setPartForm((f) => ({ ...f, PartName: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Part Name</label><input className="form-control form-control-custom" required value={partForm.PartName ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, PartName: e.target.value }))} /></div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Category</label>
-                      <select className="form-select form-control-custom" required value={partForm.CategoryID} onChange={(e) => setPartForm((f) => ({ ...f, CategoryID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={partForm.CategoryID ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, CategoryID: e.target.value }))}>
                         <option value="">Select category...</option>
                         {categories.map((c) => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Supplier</label>
-                      <select className="form-select form-control-custom" required value={partForm.SupplierID} onChange={(e) => setPartForm((f) => ({ ...f, SupplierID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={partForm.SupplierID ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, SupplierID: e.target.value }))}>
                         <option value="">Select supplier...</option>
                         {suppliers.map((s) => <option key={s.SupplierID} value={s.SupplierID}>{s.CompanyName}</option>)}
                       </select>
                     </div>
-                    <div className="col-md-6"><label className="form-label-custom">Unit Price (RWF)</label><input type="number" className="form-control form-control-custom" required value={partForm.UnitPrice} onChange={(e) => setPartForm((f) => ({ ...f, UnitPrice: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Quantity In Stock</label><input type="number" min="0" className="form-control form-control-custom" required value={partForm.Quantity} onChange={(e) => setPartForm((f) => ({ ...f, Quantity: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Reorder Level</label><input type="number" min="0" className="form-control form-control-custom" required value={partForm.ReorderLevel} onChange={(e) => setPartForm((f) => ({ ...f, ReorderLevel: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Unit Price (RWF)</label><input type="number" className="form-control form-control-custom" required value={partForm.UnitPrice ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, UnitPrice: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Quantity In Stock</label><input type="number" min="0" className="form-control form-control-custom" required value={partForm.Quantity ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, Quantity: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Reorder Level</label><input type="number" min="0" className="form-control form-control-custom" required value={partForm.ReorderLevel ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, ReorderLevel: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Spare Part</button>
                 </form>
@@ -235,8 +235,8 @@ export default function StockManager() {
               />
               <Modal id="categoryModal" title={categoryForm.CategoryID ? 'Edit Category' : 'Add Category'} icon="bi-tags-fill">
                 <form onSubmit={categoryCrud.save}>
-                  <div className="mb-3"><label className="form-label-custom">Category Name</label><input className="form-control form-control-custom" required value={categoryForm.CategoryName} onChange={(e) => setCategoryForm((f) => ({ ...f, CategoryName: e.target.value }))} /></div>
-                  <div className="mb-3"><label className="form-label-custom">Description</label><textarea className="form-control form-control-custom" rows={2} value={categoryForm.Description} onChange={(e) => setCategoryForm((f) => ({ ...f, Description: e.target.value }))}></textarea></div>
+                  <div className="mb-3"><label className="form-label-custom">Category Name</label><input className="form-control form-control-custom" required value={categoryForm.CategoryName ?? ''} onChange={(e) => setCategoryForm((f) => ({ ...f, CategoryName: e.target.value }))} /></div>
+                  <div className="mb-3"><label className="form-label-custom">Description</label><textarea className="form-control form-control-custom" rows={2} value={categoryForm.Description ?? ''} onChange={(e) => setCategoryForm((f) => ({ ...f, Description: e.target.value }))}></textarea></div>
                   <button type="submit" className="btn-primary-full btn-save"><i className="bi bi-check-circle"></i> Save Category</button>
                 </form>
               </Modal>
@@ -269,10 +269,10 @@ export default function StockManager() {
               <Modal id="supplierModal" title={supplierForm.SupplierID ? 'Edit Supplier' : 'Add Supplier'} icon="bi-truck">
                 <form onSubmit={supplierCrud.save}>
                   <div className="row g-3">
-                    <div className="col-md-6"><label className="form-label-custom">Supplier Name</label><input className="form-control form-control-custom" required value={supplierForm.CompanyName} onChange={(e) => setSupplierForm((f) => ({ ...f, CompanyName: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={supplierForm.Phone} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={supplierForm.Email} onChange={(e) => setSupplierForm((f) => ({ ...f, Email: e.target.value }))} /></div>
-                    <div className="col-12"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={supplierForm.Address} onChange={(e) => setSupplierForm((f) => ({ ...f, Address: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Supplier Name</label><input className="form-control form-control-custom" required value={supplierForm.CompanyName ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, CompanyName: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={supplierForm.Phone ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={supplierForm.Email ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Email: e.target.value }))} /></div>
+                    <div className="col-12"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={supplierForm.Address ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Address: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Supplier</button>
                 </form>
@@ -326,21 +326,21 @@ export default function StockManager() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label-custom">Spare Part</label>
-                      <select className="form-select form-control-custom" required value={purchaseForm.SparePartID} onChange={(e) => setPurchaseForm((f) => ({ ...f, SparePartID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={purchaseForm.SparePartID ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, SparePartID: e.target.value }))}>
                         <option value="">Select part...</option>
                         {spareParts.map((p) => <option key={p.SparePartID} value={p.SparePartID}>{p.PartName}</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Supplier</label>
-                      <select className="form-select form-control-custom" required value={purchaseForm.SupplierID} onChange={(e) => setPurchaseForm((f) => ({ ...f, SupplierID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={purchaseForm.SupplierID ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, SupplierID: e.target.value }))}>
                         <option value="">Select supplier...</option>
                         {suppliers.map((s) => <option key={s.SupplierID} value={s.SupplierID}>{s.CompanyName}</option>)}
                       </select>
                     </div>
-                    <div className="col-md-6"><label className="form-label-custom">Quantity</label><input type="number" min="1" className="form-control form-control-custom" required value={purchaseForm.Quantity} onChange={(e) => setPurchaseForm((f) => ({ ...f, Quantity: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Unit Cost (RWF)</label><input type="number" className="form-control form-control-custom" required value={purchaseForm.UnitPrice} onChange={(e) => setPurchaseForm((f) => ({ ...f, UnitPrice: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Purchase Date</label><input type="date" className="form-control form-control-custom" required value={purchaseForm.PurchaseDate} onChange={(e) => setPurchaseForm((f) => ({ ...f, PurchaseDate: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Quantity</label><input type="number" min="1" className="form-control form-control-custom" required value={purchaseForm.Quantity ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, Quantity: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Unit Cost (RWF)</label><input type="number" className="form-control form-control-custom" required value={purchaseForm.UnitPrice ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, UnitPrice: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Purchase Date</label><input type="date" className="form-control form-control-custom" required value={purchaseForm.PurchaseDate ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, PurchaseDate: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Purchase</button>
                 </form>
@@ -397,28 +397,32 @@ export default function StockManager() {
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label-custom">Full Name</label>
-                  <input className="form-control form-control-custom" required value={profileForm.full_name} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.full_name ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Username</label>
-                  <input className="form-control form-control-custom" required value={profileForm.username} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.username ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Email</label>
-                  <input type="email" className="form-control form-control-custom" required value={profileForm.email} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                  <input type="email" className="form-control form-control-custom" required value={profileForm.email ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label-custom">Phone</label>
+                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Current Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">New Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Confirm New Password</label>
-                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
                 </div>
               </div>
               <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Update Profile</button>

@@ -162,7 +162,7 @@ export default function Admin() {
   const [mechanicForm, setMechanicForm] = useState(emptyMechanic);
   const [supplierForm, setSupplierForm] = useState(emptySupplier);
   const [notificationForm, setNotificationForm] = useState(emptyNotification);
-  const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', current_password: '', new_password: '', confirm_password: '' });
+  const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '', current_password: '', new_password: '', confirm_password: '' });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -774,28 +774,32 @@ export default function Admin() {
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label-custom">Full Name</label>
-                  <input className="form-control form-control-custom" required value={profileForm.full_name} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.full_name ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Username</label>
-                  <input className="form-control form-control-custom" required value={profileForm.username} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.username ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Email</label>
-                  <input type="email" className="form-control form-control-custom" required value={profileForm.email} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                  <input type="email" className="form-control form-control-custom" required value={profileForm.email ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label-custom">Phone</label>
+                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Current Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">New Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Confirm New Password</label>
-                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
                 </div>
               </div>
               <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Update Profile</button>
@@ -810,34 +814,34 @@ export default function Admin() {
           <div className="row g-3">
             <div className="col-md-6">
               <label className="form-label-custom">Role</label>
-              <select className="form-select form-control-custom" required value={userForm.Role} onChange={(e) => setUserForm((f) => ({ ...f, Role: e.target.value }))}>
+              <select className="form-select form-control-custom" required value={userForm.Role ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Role: e.target.value }))}>
                 <option value="" disabled>Select role...</option>
                 {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Full Name</label>
-              <input className="form-control form-control-custom" required value={userForm.FullName} onChange={(e) => setUserForm((f) => ({ ...f, FullName: e.target.value }))} />
+              <input className="form-control form-control-custom" required value={userForm.FullName ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, FullName: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Phone</label>
-              <input className="form-control form-control-custom" value={userForm.Phone} onChange={(e) => setUserForm((f) => ({ ...f, Phone: e.target.value }))} />
+              <input className="form-control form-control-custom" value={userForm.Phone ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Phone: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Email</label>
-              <input type="email" className="form-control form-control-custom" required value={userForm.Email} onChange={(e) => setUserForm((f) => ({ ...f, Email: e.target.value }))} />
+              <input type="email" className="form-control form-control-custom" required value={userForm.Email ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Email: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Username</label>
-              <input className="form-control form-control-custom" required value={userForm.Username} onChange={(e) => setUserForm((f) => ({ ...f, Username: e.target.value }))} />
+              <input className="form-control form-control-custom" required value={userForm.Username ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Username: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">{userForm.UserID ? 'New Password (optional)' : 'Password'}</label>
-              <input type="password" className="form-control form-control-custom" required={!userForm.UserID} value={userForm.Password} onChange={(e) => setUserForm((f) => ({ ...f, Password: e.target.value }))} />
+              <input type="password" className="form-control form-control-custom" required={!userForm.UserID} value={userForm.Password ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Password: e.target.value }))} />
             </div>
             <div className="col-12">
               <label className="form-label-custom">Confirm Password</label>
-              <input type="password" className="form-control form-control-custom" required={!userForm.UserID || !!userForm.Password} value={userForm.ConfirmPassword} onChange={(e) => setUserForm((f) => ({ ...f, ConfirmPassword: e.target.value }))} />
+              <input type="password" className="form-control form-control-custom" required={!userForm.UserID || !!userForm.Password} value={userForm.ConfirmPassword ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, ConfirmPassword: e.target.value }))} />
             </div>
 
             {userForm.Role === 'Mechanic' && (
@@ -845,14 +849,14 @@ export default function Admin() {
                 <div className="col-12 field-reveal"><div className="form-section-divider">Mechanic Details</div></div>
                 <div className="col-md-6 field-reveal">
                   <label className="form-label-custom">Specialization</label>
-                  <select className="form-select form-control-custom" value={userForm.MechanicSpecialization} onChange={(e) => setUserForm((f) => ({ ...f, MechanicSpecialization: e.target.value }))}>
+                  <select className="form-select form-control-custom" value={userForm.MechanicSpecialization ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, MechanicSpecialization: e.target.value }))}>
                     <option value="">Select specialization...</option>
                     {SPECIALIZATION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div className="col-md-6 field-reveal">
                   <label className="form-label-custom">Salary</label>
-                  <input type="number" min="0" className="form-control form-control-custom" placeholder="e.g., 450000" value={userForm.MechanicSalary} onChange={(e) => setUserForm((f) => ({ ...f, MechanicSalary: e.target.value }))} />
+                  <input type="number" min="0" className="form-control form-control-custom" placeholder="e.g., 450000" value={userForm.MechanicSalary ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, MechanicSalary: e.target.value }))} />
                 </div>
               </>
             )}
@@ -868,19 +872,19 @@ export default function Admin() {
           <div className="row g-3">
             <div className="col-md-6">
               <label className="form-label-custom">Full Name</label>
-              <input className="form-control form-control-custom" required value={mechanicForm.FullName} onChange={(e) => setMechanicForm((f) => ({ ...f, FullName: e.target.value }))} />
+              <input className="form-control form-control-custom" required value={mechanicForm.FullName ?? ''} onChange={(e) => setMechanicForm((f) => ({ ...f, FullName: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Phone</label>
-              <input className="form-control form-control-custom" value={mechanicForm.Phone} onChange={(e) => setMechanicForm((f) => ({ ...f, Phone: e.target.value }))} />
+              <input className="form-control form-control-custom" value={mechanicForm.Phone ?? ''} onChange={(e) => setMechanicForm((f) => ({ ...f, Phone: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Specialty</label>
-              <input className="form-control form-control-custom" value={mechanicForm.Specialization} onChange={(e) => setMechanicForm((f) => ({ ...f, Specialization: e.target.value }))} />
+              <input className="form-control form-control-custom" value={mechanicForm.Specialization ?? ''} onChange={(e) => setMechanicForm((f) => ({ ...f, Specialization: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Salary (RWF)</label>
-              <input type="number" min="0" className="form-control form-control-custom" required value={mechanicForm.Salary} onChange={(e) => setMechanicForm((f) => ({ ...f, Salary: e.target.value }))} />
+              <input type="number" min="0" className="form-control form-control-custom" required value={mechanicForm.Salary ?? ''} onChange={(e) => setMechanicForm((f) => ({ ...f, Salary: e.target.value }))} />
             </div>
           </div>
           <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Mechanic</button>
@@ -893,19 +897,19 @@ export default function Admin() {
           <div className="row g-3">
             <div className="col-md-6">
               <label className="form-label-custom">Company Name</label>
-              <input className="form-control form-control-custom" required value={supplierForm.CompanyName} onChange={(e) => setSupplierForm((f) => ({ ...f, CompanyName: e.target.value }))} />
+              <input className="form-control form-control-custom" required value={supplierForm.CompanyName ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, CompanyName: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Phone</label>
-              <input className="form-control form-control-custom" value={supplierForm.Phone} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} />
+              <input className="form-control form-control-custom" value={supplierForm.Phone ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Email</label>
-              <input type="email" className="form-control form-control-custom" value={supplierForm.Email} onChange={(e) => setSupplierForm((f) => ({ ...f, Email: e.target.value }))} />
+              <input type="email" className="form-control form-control-custom" value={supplierForm.Email ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Email: e.target.value }))} />
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Address</label>
-              <input className="form-control form-control-custom" value={supplierForm.Address} onChange={(e) => setSupplierForm((f) => ({ ...f, Address: e.target.value }))} />
+              <input className="form-control form-control-custom" value={supplierForm.Address ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Address: e.target.value }))} />
             </div>
           </div>
           <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Supplier</button>
@@ -918,14 +922,14 @@ export default function Admin() {
           <div className="row g-3">
             <div className="col-md-6">
               <label className="form-label-custom">User</label>
-              <select className="form-select form-control-custom" value={notificationForm.UserID} onChange={(e) => setNotificationForm((f) => ({ ...f, UserID: e.target.value }))}>
+              <select className="form-select form-control-custom" value={notificationForm.UserID ?? ''} onChange={(e) => setNotificationForm((f) => ({ ...f, UserID: e.target.value }))}>
                 <option value="">All Users</option>
                 {users.map((u) => <option key={u.UserID} value={u.UserID}>{u.FullName}</option>)}
               </select>
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Type</label>
-              <select className="form-select form-control-custom" value={notificationForm.Type} onChange={(e) => setNotificationForm((f) => ({ ...f, Type: e.target.value }))}>
+              <select className="form-select form-control-custom" value={notificationForm.Type ?? ''} onChange={(e) => setNotificationForm((f) => ({ ...f, Type: e.target.value }))}>
                 <option value="system">System</option>
                 <option value="job">Job</option>
                 <option value="stock">Stock</option>
@@ -934,7 +938,7 @@ export default function Admin() {
             </div>
             <div className="col-12">
               <label className="form-label-custom">Message</label>
-              <textarea className="form-control form-control-custom" rows={4} required value={notificationForm.Message} onChange={(e) => setNotificationForm((f) => ({ ...f, Message: e.target.value }))} />
+              <textarea className="form-control form-control-custom" rows={4} required value={notificationForm.Message ?? ''} onChange={(e) => setNotificationForm((f) => ({ ...f, Message: e.target.value }))} />
             </div>
             <div className="col-12">
               <label className="form-label-custom">Link (optional)</label>

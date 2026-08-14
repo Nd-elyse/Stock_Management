@@ -240,7 +240,7 @@ export default function Login() {
                   <input type="checkbox" className="form-check-input" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
                   <label className="form-check-label" htmlFor="rememberMe" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Remember me</label>
                 </div>
-                <a href="#top" className="forgot-link" data-bs-toggle="modal" data-bs-target="#forgotModal">Forgot password?</a>
+                <a href="#top" className="forgot-link" onClick={(e) => { e.preventDefault(); openModal('forgotModal'); }}>Forgot password?</a>
               </div>
 
               <button type="submit" className="btn-primary-full" disabled={submitting}>
@@ -249,7 +249,7 @@ export default function Login() {
             </form>
 
             <div className="text-center signup-text">
-              Don't have an account? <a href="#top" data-bs-toggle="modal" data-bs-target="#contactAdminModal">Contact Admin</a>
+              Don't have an account? <a href="#top" onClick={(e) => { e.preventDefault(); openModal('contactAdminModal'); }}>Contact Admin</a>
             </div>
           </div>
         </div>

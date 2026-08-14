@@ -10,6 +10,7 @@ import { PublicLayout, ProtectedRoute } from './components';
 import Home from './pages/Home/Home';
 import About from './pages/About/About';
 import Contact from './pages/Contact/Contact';
+import TrackRepair from './pages/TrackRepair/TrackRepair';
 import Login from './pages/Login/Login';
 import Admin from './pages/Dashboard/Admin';
 import Receptionist from './pages/Dashboard/Receptionist';
@@ -24,6 +25,7 @@ function App() {
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
           <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
           <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
+          <Route path="/track-repair" element={<PublicLayout><TrackRepair /></PublicLayout>} />
           <Route path="/login" element={<Login />} />
 
           <Route path="/dashboard/admin" element={<ProtectedRoute role="Admin"><Admin /></ProtectedRoute>} />

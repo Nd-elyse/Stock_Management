@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link, NavLink, Navigate, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context';
 
 /* ============================================================
@@ -61,19 +61,33 @@ export function PageLoader({ hidden }) {
 }
 
 export function PublicNavbar({ scrolled }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close the mobile menu on every navigation, so it doesn't stay open
+  // after tapping a link.
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
   return (
     <nav className={`navbar navbar-expand-lg navbar-custom fixed-top${scrolled ? ' scrolled' : ''}`} id="mainNav">
       <div className="container">
         <NavLink className="navbar-brand" to="/">
           <i className="bi bi-wrench-adjustable-circle-fill"></i> Garage<span>Manager</span>
         </NavLink>
-        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+        <button
+          className="navbar-toggler"
+          type="button"
+          aria-label="Toggle navigation"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
           <span className="navbar-toggler-icon"></span>
         </button>
-        <div className="collapse navbar-collapse" id="navMenu">
+        <div className={`collapse navbar-collapse${menuOpen ? ' show' : ''}`} id="navMenu">
           <ul className="navbar-nav ms-auto align-items-lg-center gap-1 gap-lg-0">
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/" end>Home</NavLink></li>
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/about">About</NavLink></li>
+            <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/track-repair">Track Repair</NavLink></li>
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/contact">Contact</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link btn-login" to="/login"><i className="bi bi-box-arrow-in-right"></i> Login</NavLink></li>
           </ul>
@@ -415,6 +429,17 @@ export function StatusBadge({ status, okValues = ['Active', 'Paid', 'Delivered',
    ============================================================ */
 export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, pageTitle, userName, userRole, unreadCount, onSearch, children }) {
   const { logout } = useAuth();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDocClick = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [userMenuOpen]);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -452,18 +477,18 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div className="dropdown">
-            <div className="user-info" data-bs-toggle="dropdown" aria-expanded="false">
+          <div className={`dropdown${userMenuOpen ? ' show' : ''}`} ref={userMenuRef}>
+            <div className="user-info" onClick={() => setUserMenuOpen((v) => !v)} aria-expanded={userMenuOpen} role="button">
               <div className="user-avatar">{(userName || 'US').substring(0, 2).toUpperCase()}</div>
               <div>
                 <div className="user-name">{userName}</div>
                 <div className="user-role">{userRole}</div>
               </div>
             </div>
-            <ul className="dropdown-menu">
-              <li><a className="dropdown-item" href="#top" data-bs-toggle="modal" data-bs-target="#profileModal"><i className="bi bi-gear"></i> Settings</a></li>
+            <ul className={`dropdown-menu${userMenuOpen ? ' show' : ''}`}>
+              <li><a className="dropdown-item" href="#top" onClick={(e) => { e.preventDefault(); setUserMenuOpen(false); showBsModal('profileModal'); }}><i className="bi bi-gear"></i> Settings</a></li>
               <li><hr className="dropdown-divider" /></li>
-              <li><a className="dropdown-item" href="#top" onClick={handleLogout}><i className="bi bi-box-arrow-right"></i> Logout</a></li>
+              <li><a className="dropdown-item" href="#top" onClick={(e) => { setUserMenuOpen(false); handleLogout(e); }}><i className="bi bi-box-arrow-right"></i> Logout</a></li>
             </ul>
           </div>
         </div>

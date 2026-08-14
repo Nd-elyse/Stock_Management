@@ -221,4 +221,8 @@ export const statsApi = {
   getDashboardStats: () => request('get', '/stats/dashboard'),
 };
 
+export const trackRepairApi = {
+  lookup: (fullName, plateNumber) => request('post', '/track-repair', { full_name: fullName, plate_number: plateNumber }),
+};
+
 export default client;

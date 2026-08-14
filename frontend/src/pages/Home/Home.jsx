@@ -90,7 +90,7 @@ export default function Home() {
               <h1 className="hero-title">Smart Garage <br /><span className="highlight">Services &amp; Stock</span> Management</h1>
               <p className="hero-subtitle">Automate vehicle repairs, track spare parts inventory, manage customers, and generate invoices — all from one centralized platform.</p>
               <div className="hero-actions">
-                <Link to="/about" className="btn-outline-custom"><i className="bi bi-info-circle"></i> Learn More</Link>
+                <Link to="/track-repair" className="btn-outline-custom"><i className="bi bi-search"></i> View Repair Status</Link>
               </div>
               <div className="hero-stats">
                 {STAT_KEYS.map((s) => (

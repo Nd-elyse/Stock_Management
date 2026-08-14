@@ -65,7 +65,7 @@ export default function Mechanic() {
   const [notesText, setNotesText] = useState('');
   const [requestForm, setRequestForm] = useState(emptyRequest);
   const [profileForm, setProfileForm] = useState({
-    full_name: user?.name || '', username: user?.username || '', email: user?.email || '',
+    full_name: user?.name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '',
     current_password: '', new_password: '', confirm_password: '',
   });
 
@@ -249,7 +249,7 @@ export default function Mechanic() {
                 </div>
                 <div className="col-12">
                   <label className="form-label-custom">Notes</label>
-                  <textarea className="form-control form-control-custom" rows={6} placeholder="Write your notes here..." required value={notesText} onChange={(e) => setNotesText(e.target.value)}></textarea>
+                  <textarea className="form-control form-control-custom" rows={6} placeholder="Write your notes here..." required value={notesText ?? ''} onChange={(e) => setNotesText(e.target.value)}></textarea>
                 </div>
               </div>
               <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-lg"></i> Save Notes</button>
@@ -264,7 +264,7 @@ export default function Mechanic() {
                   <div className="row g-3 mt-2">
                     <div className="col-md-6">
                       <label className="form-label-custom">Job <span className="text-muted">(optional)</span></label>
-                      <select className="form-select form-control-custom" value={requestForm.JobID} onChange={(e) => setRequestForm((f) => ({ ...f, JobID: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={requestForm.JobID ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, JobID: e.target.value }))}>
                         <option value="">Select job (optional)...</option>
                         {myJobs.filter((j) => ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts'].includes(j.Status)).map((j) => (
                           <option key={j.JobID} value={j.JobID}>{vehiclePlate(j.VehicleID)} - {j.CustomerName || 'Unknown'}</option>
@@ -273,18 +273,18 @@ export default function Mechanic() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Part Name</label>
-                      <select className="form-select form-control-custom" required value={requestForm.SparePartID} onChange={(e) => setRequestForm((f) => ({ ...f, SparePartID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={requestForm.SparePartID ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, SparePartID: e.target.value }))}>
                         <option value="">Select part...</option>
                         {spareParts.map((p) => <option key={p.SparePartID} value={p.SparePartID}>{p.PartName} (Stock: {p.Quantity})</option>)}
                       </select>
                     </div>
                     <div className="col-md-4">
                       <label className="form-label-custom">Quantity</label>
-                      <input type="number" min="1" className="form-control form-control-custom" required value={requestForm.QuantityRequested} onChange={(e) => setRequestForm((f) => ({ ...f, QuantityRequested: e.target.value }))} />
+                      <input type="number" min="1" className="form-control form-control-custom" required value={requestForm.QuantityRequested ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, QuantityRequested: e.target.value }))} />
                     </div>
                     <div className="col-md-8">
                       <label className="form-label-custom">Reason</label>
-                      <input type="text" className="form-control form-control-custom" placeholder="Why do you need this part?" value={requestForm.Reason} onChange={(e) => setRequestForm((f) => ({ ...f, Reason: e.target.value }))} />
+                      <input type="text" className="form-control form-control-custom" placeholder="Why do you need this part?" value={requestForm.Reason ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, Reason: e.target.value }))} />
                     </div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-4"><i className="bi bi-send"></i> Submit Request</button>
@@ -372,28 +372,32 @@ export default function Mechanic() {
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label-custom">Full Name</label>
-                  <input className="form-control form-control-custom" required value={profileForm.full_name} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.full_name ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Username</label>
-                  <input className="form-control form-control-custom" required value={profileForm.username} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.username ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Email</label>
-                  <input type="email" className="form-control form-control-custom" required value={profileForm.email} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                  <input type="email" className="form-control form-control-custom" required value={profileForm.email ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label-custom">Phone</label>
+                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Current Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">New Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Confirm New Password</label>
-                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
                 </div>
               </div>
               <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Update Profile</button>

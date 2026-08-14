@@ -52,7 +52,7 @@ export default function Receptionist() {
   const [jobForm, setJobForm] = useState(emptyJob);
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoice);
   const [paymentForm, setPaymentForm] = useState(emptyPayment);
-  const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', current_password: '', new_password: '', confirm_password: '' });
+  const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '', current_password: '', new_password: '', confirm_password: '' });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -196,10 +196,10 @@ export default function Receptionist() {
               <Modal id="customerModal" title={customerForm.CustomerID ? 'Edit Customer' : 'Add Customer'} icon="bi-person-plus">
                 <form onSubmit={customerCrud.save}>
                   <div className="row g-3">
-                    <div className="col-md-6"><label className="form-label-custom">Full Name</label><input className="form-control form-control-custom" required value={customerForm.FullName} onChange={(e) => setCustomerForm((f) => ({ ...f, FullName: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={customerForm.Phone} onChange={(e) => setCustomerForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={customerForm.Email} onChange={(e) => setCustomerForm((f) => ({ ...f, Email: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={customerForm.Address} onChange={(e) => setCustomerForm((f) => ({ ...f, Address: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Full Name</label><input className="form-control form-control-custom" required value={customerForm.FullName ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, FullName: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={customerForm.Phone ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={customerForm.Email ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Email: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={customerForm.Address ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Address: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Customer</button>
                 </form>
@@ -244,26 +244,26 @@ export default function Receptionist() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label-custom">Owner (Customer)</label>
-                      <select className="form-select form-control-custom" required value={vehicleForm.CustomerID} onChange={(e) => setVehicleForm((f) => ({ ...f, CustomerID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={vehicleForm.CustomerID ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, CustomerID: e.target.value }))}>
                         <option value="">Select customer...</option>
                         {customers.map((c) => <option key={c.CustomerID} value={c.CustomerID}>{c.FullName}</option>)}
                       </select>
                     </div>
-                    <div className="col-md-6"><label className="form-label-custom">Plate Number</label><input className="form-control form-control-custom" required value={vehicleForm.PlateNumber} onChange={(e) => setVehicleForm((f) => ({ ...f, PlateNumber: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Make</label><input className="form-control form-control-custom" required value={vehicleForm.Manufacturer} onChange={(e) => setVehicleForm((f) => ({ ...f, Manufacturer: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Model</label><input className="form-control form-control-custom" required value={vehicleForm.Model} onChange={(e) => setVehicleForm((f) => ({ ...f, Model: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Year</label><input className="form-control form-control-custom" value={vehicleForm.Year} onChange={(e) => setVehicleForm((f) => ({ ...f, Year: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Chassis Number</label><input className="form-control form-control-custom" value={vehicleForm.ChassisNumber} onChange={(e) => setVehicleForm((f) => ({ ...f, ChassisNumber: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Engine Number</label><input className="form-control form-control-custom" value={vehicleForm.EngineNumber} onChange={(e) => setVehicleForm((f) => ({ ...f, EngineNumber: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Plate Number</label><input className="form-control form-control-custom" required value={vehicleForm.PlateNumber ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, PlateNumber: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Make</label><input className="form-control form-control-custom" required value={vehicleForm.Manufacturer ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, Manufacturer: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Model</label><input className="form-control form-control-custom" required value={vehicleForm.Model ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, Model: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Year</label><input className="form-control form-control-custom" value={vehicleForm.Year ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, Year: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Chassis Number</label><input className="form-control form-control-custom" value={vehicleForm.ChassisNumber ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, ChassisNumber: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Engine Number</label><input className="form-control form-control-custom" value={vehicleForm.EngineNumber ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, EngineNumber: e.target.value }))} /></div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Fuel Type</label>
-                      <select className="form-select form-control-custom" value={vehicleForm.FuelType} onChange={(e) => setVehicleForm((f) => ({ ...f, FuelType: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={vehicleForm.FuelType ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, FuelType: e.target.value }))}>
                         <option>Petrol</option><option>Diesel</option><option>Electric</option><option>Hybrid</option>
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Transmission</label>
-                      <select className="form-select form-control-custom" value={vehicleForm.Transmission} onChange={(e) => setVehicleForm((f) => ({ ...f, Transmission: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={vehicleForm.Transmission ?? ''} onChange={(e) => setVehicleForm((f) => ({ ...f, Transmission: e.target.value }))}>
                         <option>Manual</option><option>Automatic</option>
                       </select>
                     </div>
@@ -311,22 +311,22 @@ export default function Receptionist() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label-custom">Vehicle</label>
-                      <select className="form-select form-control-custom" required value={jobForm.VehicleID} onChange={(e) => setJobForm((f) => ({ ...f, VehicleID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={jobForm.VehicleID ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, VehicleID: e.target.value }))}>
                         <option value="">Select vehicle...</option>
                         {vehicles.map((v) => <option key={v.VehicleID} value={v.VehicleID}>{v.PlateNumber} — {v.Manufacturer} {v.Model}</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Assign Mechanic</label>
-                      <select className="form-select form-control-custom" value={jobForm.MechanicID} onChange={(e) => setJobForm((f) => ({ ...f, MechanicID: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={jobForm.MechanicID ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, MechanicID: e.target.value }))}>
                         <option value="">Unassigned</option>
                         {mechanics.map((m) => <option key={m.MechanicID} value={m.MechanicID}>{m.FullName}</option>)}
                       </select>
                     </div>
-                    <div className="col-12"><label className="form-label-custom">Description</label><textarea className="form-control form-control-custom" rows={3} required value={jobForm.Description} onChange={(e) => setJobForm((f) => ({ ...f, Description: e.target.value }))}></textarea></div>
+                    <div className="col-12"><label className="form-label-custom">Description</label><textarea className="form-control form-control-custom" rows={3} required value={jobForm.Description ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, Description: e.target.value }))}></textarea></div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Status</label>
-                      <select className="form-select form-control-custom" value={jobForm.Status} onChange={(e) => setJobForm((f) => ({ ...f, Status: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={jobForm.Status ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, Status: e.target.value }))}>
                         <option>Pending</option><option>Diagnosed</option><option>In Progress</option><option>Ready</option><option>Delivered</option>
                       </select>
                     </div>
@@ -377,56 +377,56 @@ export default function Receptionist() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label-custom">Customer</label>
-                      <select className="form-select form-control-custom" required value={invoiceForm.CustomerID} onChange={(e) => setInvoiceForm((f) => ({ ...f, CustomerID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={invoiceForm.CustomerID ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, CustomerID: e.target.value }))}>
                         <option value="">Select customer...</option>
                         {customers.map((c) => <option key={c.CustomerID} value={c.CustomerID}>{c.FullName}</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Job</label>
-                      <select className="form-select form-control-custom" value={invoiceForm.JobID} onChange={(e) => setInvoiceForm((f) => ({ ...f, JobID: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={invoiceForm.JobID ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, JobID: e.target.value }))}>
                         <option value="">Optional</option>
                         {jobs.map((j) => <option key={j.JobID} value={j.JobID}>#{j.JobID} — {customerName(j.CustomerID)}</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Vehicle</label>
-                      <select className="form-select form-control-custom" value={invoiceForm.VehicleID} onChange={(e) => setInvoiceForm((f) => ({ ...f, VehicleID: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={invoiceForm.VehicleID ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, VehicleID: e.target.value }))}>
                         <option value="">Select vehicle (optional)</option>
                         {vehicles.map((v) => <option key={v.VehicleID} value={v.VehicleID}>{v.PlateNumber} — {v.Model}</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Invoice Date</label>
-                      <input type="date" className="form-control form-control-custom" required max={new Date().toISOString().slice(0, 10)} value={invoiceForm.InvoiceDate} onChange={(e) => setInvoiceForm((f) => ({ ...f, InvoiceDate: e.target.value }))} />
+                      <input type="date" className="form-control form-control-custom" required max={new Date().toISOString().slice(0, 10)} value={invoiceForm.InvoiceDate ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, InvoiceDate: e.target.value }))} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Labour Charges (RWF)</label>
-                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.LabourCharges} onChange={(e) => updateInvoiceField('LabourCharges', e.target.value)} />
+                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.LabourCharges ?? ''} onChange={(e) => updateInvoiceField('LabourCharges', e.target.value)} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Spare Parts Cost (RWF)</label>
-                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.SparePartsCost} onChange={(e) => updateInvoiceField('SparePartsCost', e.target.value)} />
+                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.SparePartsCost ?? ''} onChange={(e) => updateInvoiceField('SparePartsCost', e.target.value)} />
                     </div>
                     <div className="col-md-3">
                       <label className="form-label-custom">Tax Rate (%)</label>
-                      <input type="number" min="0" max="100" step="0.1" className="form-control form-control-custom" value={invoiceForm.TaxRate} onChange={(e) => updateInvoiceField('TaxRate', e.target.value)} />
+                      <input type="number" min="0" max="100" step="0.1" className="form-control form-control-custom" value={invoiceForm.TaxRate ?? ''} onChange={(e) => updateInvoiceField('TaxRate', e.target.value)} />
                     </div>
                     <div className="col-md-3">
                       <label className="form-label-custom">Tax Amount (RWF)</label>
-                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.TaxAmount} onChange={(e) => setInvoiceForm((f) => ({ ...f, TaxAmount: e.target.value }))} />
+                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.TaxAmount ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, TaxAmount: e.target.value }))} />
                     </div>
                     <div className="col-md-3">
                       <label className="form-label-custom">Discount Rate (%)</label>
-                      <input type="number" min="0" max="100" step="0.1" className="form-control form-control-custom" value={invoiceForm.DiscountRate} onChange={(e) => updateInvoiceField('DiscountRate', e.target.value)} />
+                      <input type="number" min="0" max="100" step="0.1" className="form-control form-control-custom" value={invoiceForm.DiscountRate ?? ''} onChange={(e) => updateInvoiceField('DiscountRate', e.target.value)} />
                     </div>
                     <div className="col-md-3">
                       <label className="form-label-custom">Discount Amount (RWF)</label>
-                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.DiscountAmount} onChange={(e) => setInvoiceForm((f) => ({ ...f, DiscountAmount: e.target.value }))} />
+                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" value={invoiceForm.DiscountAmount ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, DiscountAmount: e.target.value }))} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Total Amount (auto-calc)</label>
-                      <input type="number" step="0.01" className="form-control form-control-custom" readOnly value={invoiceForm.TotalAmount} />
+                      <input type="number" step="0.01" className="form-control form-control-custom" readOnly value={invoiceForm.TotalAmount ?? ''} />
                     </div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Invoice</button>
@@ -468,19 +468,19 @@ export default function Receptionist() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label-custom">Invoice</label>
-                      <select className="form-select form-control-custom" required value={paymentForm.InvoiceID} onChange={(e) => setPaymentForm((f) => ({ ...f, InvoiceID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={paymentForm.InvoiceID ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, InvoiceID: e.target.value }))}>
                         <option value="">Select invoice...</option>
                         {invoices.map((i) => <option key={i.InvoiceID} value={i.InvoiceID}>#{i.InvoiceID} — {i.TotalAmount} RWF</option>)}
                       </select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Payment Method</label>
-                      <select className="form-select form-control-custom" value={paymentForm.PaymentMethod} onChange={(e) => setPaymentForm((f) => ({ ...f, PaymentMethod: e.target.value }))}>
+                      <select className="form-select form-control-custom" value={paymentForm.PaymentMethod ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, PaymentMethod: e.target.value }))}>
                         <option>Cash</option><option>Mobile Money</option><option>Bank Transfer</option><option>Card</option>
                       </select>
                     </div>
-                    <div className="col-md-6"><label className="form-label-custom">Amount Paid (RWF)</label><input type="number" className="form-control form-control-custom" required value={paymentForm.Amount} onChange={(e) => setPaymentForm((f) => ({ ...f, Amount: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Payment Date</label><input type="date" className="form-control form-control-custom" required value={paymentForm.PaymentDate} onChange={(e) => setPaymentForm((f) => ({ ...f, PaymentDate: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Amount Paid (RWF)</label><input type="number" className="form-control form-control-custom" required value={paymentForm.Amount ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, Amount: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Payment Date</label><input type="date" className="form-control form-control-custom" required value={paymentForm.PaymentDate ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, PaymentDate: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Payment</button>
                 </form>
@@ -503,28 +503,32 @@ export default function Receptionist() {
               <div className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label-custom">Full Name</label>
-                  <input className="form-control form-control-custom" required value={profileForm.full_name} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.full_name ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Username</label>
-                  <input className="form-control form-control-custom" required value={profileForm.username} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
+                  <input className="form-control form-control-custom" required value={profileForm.username ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, username: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Email</label>
-                  <input type="email" className="form-control form-control-custom" required value={profileForm.email} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                  <input type="email" className="form-control form-control-custom" required value={profileForm.email ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label-custom">Phone</label>
+                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Current Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Required to change password or username" value={profileForm.current_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, current_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">New Password</label>
-                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" placeholder="Min 6 characters" value={profileForm.new_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, new_password: e.target.value }))} />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Confirm New Password</label>
-                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
+                  <input type="password" className="form-control form-control-custom" value={profileForm.confirm_password ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, confirm_password: e.target.value }))} />
                 </div>
               </div>
               <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Update Profile</button>

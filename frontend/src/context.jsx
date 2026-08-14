@@ -54,6 +54,7 @@ export function AuthProvider({ children }) {
         name: res.user.full_name,
         username: res.user.username,
         email: res.user.email,
+        phone: res.user.phone,
         role: res.user.role,
         mechanicId: res.user.mechanic_id,
       });
