@@ -87,11 +87,6 @@ export function PublicNavbar({ scrolled }) {
           <ul className="navbar-nav ms-auto align-items-lg-center gap-1 gap-lg-0">
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/" end>Home</NavLink></li>
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/about">About</NavLink></li>
-            <li className="nav-item">
-              <button type="button" className="nav-link nav-link-btn" onClick={() => { setMenuOpen(false); showBsModal('trackRepairModal'); }}>
-                <i className="bi bi-search"></i> View Repair Status
-              </button>
-            </li>
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/contact">Contact</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link btn-login" to="/login"><i className="bi bi-box-arrow-in-right"></i> Login</NavLink></li>
           </ul>
@@ -118,6 +113,7 @@ export function PublicFooter() {
             <div className="footer-links">
               <Link to="/">Home</Link>
               <Link to="/about">About</Link>
+              <Link to="/track-repair">View Repair Status</Link>
               <Link to="/contact">Contact</Link>
               <Link to="/login">Login</Link>
             </div>
@@ -147,7 +143,7 @@ export function BackToTop({ show, onClick }) {
   );
 }
 
-export function PublicLayout({ children, modals }) {
+export function PublicLayout({ children }) {
   const { loaderHidden, scrolled, showBackToTop, scrollToTop } = usePublicChrome();
   return (
     <>
@@ -156,7 +152,6 @@ export function PublicLayout({ children, modals }) {
       {children}
       <PublicFooter />
       <BackToTop show={showBackToTop} onClick={scrollToTop} />
-      {modals}
     </>
   );
 }
@@ -432,13 +427,34 @@ export function StatusBadge({ status, okValues = ['Active', 'Paid', 'Delivered',
 /* ============================================================
    DASHBOARD SHELL (sidebar + topbar), shared by all 4 roles
    ============================================================ */
-export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, pageTitle, userName, userRole, unreadCount, onSearch, children }) {
+export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, pageTitle, userName, userRole, unreadCount, notifications, onNotificationPreviewClick, onSearch, children }) {
   const { logout } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
   const userToggleRef = useRef(null);
   const userMenuListRef = useRef(null);
   const [userMenuStyle, setUserMenuStyle] = useState({ visibility: 'hidden' });
+  const [notifPreviewOpen, setNotifPreviewOpen] = useState(false);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    if (!notifPreviewOpen) return;
+    const onDocClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifPreviewOpen(false);
+    };
+    const onKeyDown = (e) => { if (e.key === 'Escape') setNotifPreviewOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [notifPreviewOpen]);
+
+  const openNotificationsTab = () => {
+    setNotifPreviewOpen(false);
+    onTabChange('notifications');
+  };
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -573,10 +589,50 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
                 <input type="text" placeholder="Search records..." onChange={(e) => onSearch(e.target.value)} />
               </div>
             )}
-            <button className="btn-action position-relative" onClick={() => onTabChange('notifications')} title="Notifications">
-              <i className="bi bi-bell-fill" style={{ fontSize: '1.4rem' }}></i>
-              {unreadCount > 0 && <span className="badge bg-danger rounded-pill" style={{ position: 'absolute', top: -4, right: -6, fontSize: '0.6rem' }}>{unreadCount}</span>}
-            </button>
+            <div className="notif-bell-wrap" ref={notifRef}>
+              <button
+                className="btn-action position-relative"
+                onClick={() => (notifications ? setNotifPreviewOpen((v) => !v) : openNotificationsTab())}
+                onDoubleClick={openNotificationsTab}
+                title="Notifications — click to preview, double-click to open"
+              >
+                <i className="bi bi-bell-fill" style={{ fontSize: '1.4rem' }}></i>
+                {unreadCount > 0 && <span className="badge bg-danger rounded-pill" style={{ position: 'absolute', top: -4, right: -6, fontSize: '0.6rem' }}>{unreadCount}</span>}
+              </button>
+              {notifPreviewOpen && notifications && (
+                <div className="notif-preview-dropdown">
+                  <div className="notif-preview-header">
+                    <span>Notifications</span>
+                    <button type="button" onClick={openNotificationsTab}>View all</button>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="notif-preview-empty">
+                      <i className="bi bi-bell-slash"></i>
+                      <p>No notifications yet.</p>
+                    </div>
+                  ) : (
+                    <ul className="notif-preview-list">
+                      {notifications.slice(0, 5).map((n) => {
+                        const isRead = n.IsRead || n.is_read;
+                        return (
+                          <li
+                            key={n.NotificationID}
+                            className={isRead ? 'read' : 'unread'}
+                            onClick={() => { onNotificationPreviewClick && onNotificationPreviewClick(n); openNotificationsTab(); }}
+                          >
+                            <span className="notif-dot"></span>
+                            <div>
+                              <p>{n.Message || n.message}</p>
+                              {(n.CreatedAt || n.created_at) && <span className="notif-time">{n.CreatedAt || n.created_at}</span>}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="dashboard-content">{children}</div>

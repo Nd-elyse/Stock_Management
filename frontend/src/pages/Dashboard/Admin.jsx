@@ -282,6 +282,21 @@ export default function Admin() {
     const res = await notificationsApi.markAllRead();
     if (res.success) { showToast('All notifications marked as read.', 'success'); loadAll(); }
   };
+  const markOneRead = async (n) => {
+    if (n.IsRead || n.is_read) return;
+    setNotifications((prev) => prev.map((x) => (x.NotificationID === n.NotificationID ? { ...x, IsRead: true } : x)));
+    await notificationsApi.markRead(n.NotificationID);
+  };
+  // Opening the Notifications tab is "viewing" them - automatically mark
+  // whatever is currently unread as read/seen, same as the preview dropdown.
+  useEffect(() => {
+    if (activeTab !== 'notifications') return;
+    setNotifications((prev) => {
+      if (!prev.some((n) => !n.IsRead && !n.is_read)) return prev;
+      notificationsApi.markAllRead();
+      return prev.map((n) => ({ ...n, IsRead: true }));
+    });
+  }, [activeTab]);
   const openAddNotification = () => { setNotificationForm(emptyNotification); showBsModal('notificationModal'); };
   const openEditNotification = (n) => { setNotificationForm({ ...emptyNotification, ...n, UserID: n.UserID ?? '' }); showBsModal('notificationModal'); };
   const saveNotification = async (e) => {
@@ -537,6 +552,8 @@ export default function Admin() {
       userName={user?.name}
       userRole="Administrator"
       unreadCount={unreadCount}
+      notifications={notifications}
+      onNotificationPreviewClick={markOneRead}
     >
       {loading ? (
         <div className="text-center py-5"><span className="spinner-border" /></div>

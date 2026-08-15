@@ -41,23 +41,69 @@ class TrackRepairController extends Controller
             ], 404);
         }
 
-        $job = RepairJob::with('mechanic')
+        // Data source #1: every repair job ever opened for this vehicle.
+        $jobs = RepairJob::with('mechanic')
             ->where('VehicleID', $vehicle->VehicleID)
             ->orderByDesc('JobID')
-            ->first();
+            ->get();
 
-        if (!$job) {
+        if ($jobs->isEmpty()) {
             return response()->json([
                 'success' => true,
                 'data' => [
                     'vehicle' => $this->vehicleSummary($vehicle),
                     'job' => null,
+                    'jobs' => [],
+                    'summary' => null,
                     'message' => 'This vehicle has no repair jobs on record yet.',
                 ],
             ]);
         }
 
+        // Data source #2 (diagnostics) + #3 (job history) + #4 (spare part
+        // requests) + #5 (invoices/payments) are pulled per job below and
+        // folded into both the per-job detail and the cross-job summary.
+        $jobPayloads = $jobs->map(fn ($job) => $this->jobSummary($job));
+
+        $totalSpent = $jobPayloads->sum(fn ($j) => $j['estimate']['total_amount'] ?? 0);
+        $totalPaid = $jobPayloads->sum(fn ($j) => $j['estimate']['total_paid'] ?? 0);
+        $startDates = $jobs->pluck('StartDate')->filter()->sort();
+        $endDates = $jobs->pluck('EndDate')->filter()->sort();
+
+        $summary = [
+            'total_jobs' => $jobs->count(),
+            'completed_jobs' => $jobs->whereIn('Status', ['Delivered', 'Ready', 'Completed'])->count(),
+            'in_progress_jobs' => $jobs->whereIn('Status', ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts'])->count(),
+            'total_spent' => round($totalSpent, 2),
+            'total_paid' => round($totalPaid, 2),
+            'balance_due' => round(max(0, $totalSpent - $totalPaid), 2),
+            'first_service_date' => $startDates->first(),
+            'last_service_date' => $endDates->last() ?: $startDates->last(),
+            'distinct_mechanics' => $jobs->pluck('mechanic.FullName')->filter()->unique()->values(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'vehicle' => $this->vehicleSummary($vehicle),
+                // "job" kept as the latest job for backward compatibility with
+                // any existing consumer expecting a single current job.
+                'job' => $jobPayloads->first()['job'],
+                'history' => $jobPayloads->first()['history'],
+                'parts_used' => $jobPayloads->first()['parts_used'],
+                'estimate' => $jobPayloads->first()['estimate'],
+                // Full multi-job detail, newest first, for the final-result view.
+                'jobs' => $jobPayloads->values(),
+                'summary' => $summary,
+            ],
+        ]);
+    }
+
+    /** Builds the full detail payload (job + diagnostics + history + parts + invoice) for one job. */
+    private function jobSummary(RepairJob $job): array
+    {
         $diagnostic = $job->diagnostics()->orderByDesc('DiagnosticID')->first();
+
         $history = JobHistory::where('JobID', $job->JobID)->orderBy('ChangedAt')->get()->map(fn ($h) => [
             'previous_status' => $h->PreviousStatus,
             'new_status' => $h->NewStatus,
@@ -100,25 +146,21 @@ class TrackRepairController extends Controller
             ];
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'vehicle' => $this->vehicleSummary($vehicle),
-                'job' => [
-                    'job_id' => $job->JobID,
-                    'status' => $job->Status,
-                    'start_date' => $job->StartDate,
-                    'end_date' => $job->EndDate,
-                    'mechanic_name' => $job->mechanic->FullName ?? 'Not yet assigned',
-                    'diagnostic_notes' => $diagnostic->Notes ?? null,
-                    'diagnostic_recommendation' => $diagnostic->Recommendation ?? null,
-                    'diagnostic_date' => $diagnostic->DiagnosticDate ?? null,
-                ],
-                'history' => $history,
-                'parts_used' => $partsUsed,
-                'estimate' => $estimate,
+        return [
+            'job' => [
+                'job_id' => $job->JobID,
+                'status' => $job->Status,
+                'start_date' => $job->StartDate,
+                'end_date' => $job->EndDate,
+                'mechanic_name' => $job->mechanic->FullName ?? 'Not yet assigned',
+                'diagnostic_notes' => $diagnostic->Notes ?? null,
+                'diagnostic_recommendation' => $diagnostic->Recommendation ?? null,
+                'diagnostic_date' => $diagnostic->DiagnosticDate ?? null,
             ],
-        ]);
+            'history' => $history,
+            'parts_used' => $partsUsed,
+            'estimate' => $estimate,
+        ];
     }
 
     private function vehicleSummary(Vehicle $vehicle): array

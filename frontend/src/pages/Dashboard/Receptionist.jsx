@@ -144,6 +144,22 @@ export default function Receptionist() {
     invoices: 'Invoices', payments: 'Payments', notifications: 'Notifications',
   };
 
+  const markOneRead = async (n) => {
+    if (n.IsRead || n.is_read) return;
+    setNotifications((prev) => prev.map((x) => (x.NotificationID === n.NotificationID ? { ...x, IsRead: true } : x)));
+    await notificationsApi.markRead(n.NotificationID);
+  };
+  // Opening the Notifications tab is "viewing" them - automatically mark
+  // whatever is currently unread as read/seen.
+  useEffect(() => {
+    if (activeTab !== 'notifications') return;
+    setNotifications((prev) => {
+      if (!prev.some((n) => !n.IsRead && !n.is_read)) return prev;
+      notificationsApi.markAllRead();
+      return prev.map((n) => ({ ...n, IsRead: true }));
+    });
+  }, [activeTab]);
+
   return (
     <DashboardShell
       brandSub="Reception Desk"
@@ -154,6 +170,8 @@ export default function Receptionist() {
       userName={user?.name}
       userRole="Receptionist"
       unreadCount={unreadCount}
+      notifications={notifications}
+      onNotificationPreviewClick={markOneRead}
     >
       {loading ? (
         <div className="text-center py-5"><span className="spinner-border" /></div>

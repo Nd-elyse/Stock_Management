@@ -147,8 +147,8 @@ Route::middleware('auth.token')->group(function () {
         Route::delete('/stock-transactions/{id}', [StockTransactionController::class, 'destroy']);
     });
 
-    /* ---------------- Stock Manager only: inventory writes ---------------- */
-    Route::middleware('role:Stock Manager')->group(function () {
+    /* ---------------- Stock Manager (+ Admin): inventory writes ---------------- */
+    Route::middleware('role:Stock Manager,Admin')->group(function () {
         Route::post('/spare-parts', [SparePartController::class, 'store']);
         Route::put('/spare-parts/{id}', [SparePartController::class, 'update']);
         Route::delete('/spare-parts/{id}', [SparePartController::class, 'destroy']);
