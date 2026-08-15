@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\SparePartRequestController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\StockTransactionController;
 use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\TrackRepairController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VehicleController;
 
@@ -37,6 +38,9 @@ Route::prefix('auth')->group(function () {
 Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 Route::post('/password-resets', [PasswordResetTicketController::class, 'store']);
 Route::get('/stats/public', [StatsController::class, 'public']);
+// Rate-limited: requires both name + plate to match, but throttled anyway
+// since it's an unauthenticated lookup against customer/vehicle records.
+Route::post('/track-repair', [TrackRepairController::class, 'lookup'])->middleware('throttle:20,1');
 
 /* =========================================================================
    AUTHENTICATED (any role)

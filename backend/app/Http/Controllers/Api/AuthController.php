@@ -139,6 +139,7 @@ class AuthController extends Controller
             'full_name' => 'required|string|max:255',
             'username' => 'required|string|max:255',
             'email' => 'required|email|max:255',
+            'phone' => 'nullable|string|max:20',
             'current_password' => 'nullable|string',
             'new_password' => 'nullable|string|min:6',
             'confirm_password' => 'nullable|string',
@@ -162,6 +163,7 @@ class AuthController extends Controller
         $user->FullName = $data['full_name'];
         $user->Username = $data['username'];
         $user->Email = $data['email'];
+        $user->Phone = $data['phone'] ?? $user->Phone;
         if ($changingPassword) {
             $user->Password = Hash::make($data['new_password']);
         }
@@ -351,6 +353,7 @@ class AuthController extends Controller
             'full_name' => $user->FullName,
             'username' => $user->Username,
             'email' => $user->Email,
+            'phone' => $user->Phone,
             'role' => $user->Role,
             'mechanic_id' => $user->MechanicID,
         ];

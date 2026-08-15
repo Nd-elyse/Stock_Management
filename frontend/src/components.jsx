@@ -87,7 +87,11 @@ export function PublicNavbar({ scrolled }) {
           <ul className="navbar-nav ms-auto align-items-lg-center gap-1 gap-lg-0">
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/" end>Home</NavLink></li>
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/about">About</NavLink></li>
-            <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/track-repair">Track Repair</NavLink></li>
+            <li className="nav-item">
+              <button type="button" className="nav-link nav-link-btn" onClick={() => { setMenuOpen(false); showBsModal('trackRepairModal'); }}>
+                <i className="bi bi-search"></i> View Repair Status
+              </button>
+            </li>
             <li className="nav-item"><NavLink className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} to="/contact">Contact</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link btn-login" to="/login"><i className="bi bi-box-arrow-in-right"></i> Login</NavLink></li>
           </ul>
@@ -143,7 +147,7 @@ export function BackToTop({ show, onClick }) {
   );
 }
 
-export function PublicLayout({ children }) {
+export function PublicLayout({ children, modals }) {
   const { loaderHidden, scrolled, showBackToTop, scrollToTop } = usePublicChrome();
   return (
     <>
@@ -152,6 +156,7 @@ export function PublicLayout({ children }) {
       {children}
       <PublicFooter />
       <BackToTop show={showBackToTop} onClick={scrollToTop} />
+      {modals}
     </>
   );
 }

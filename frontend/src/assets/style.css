@@ -80,6 +80,12 @@ img, svg, video { max-width:100%; height:auto; }
 .navbar-custom .nav-link.active::after {
      width:60%; 
     }
+.navbar-custom .nav-link-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+}
 .navbar-custom .btn-login {
     background:var(--primary-blue); 
     color:#fff !important;
@@ -2578,4 +2584,102 @@ a { transition: color 0.2s var(--ease-out); }
 @media (max-width: 576px) {
     .repair-status-track { justify-content: flex-start; }
     .repair-status-step { min-width: 76px; }
+}
+
+/* ---------- View Repair Status modal ---------- */
+.repair-modal-intro {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    margin-bottom: 1.25rem;
+}
+.alert-danger-custom {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: #fef2f2; color: #b91c1c;
+    border: 1px solid #fecaca; border-radius: 12px;
+    padding: 0.9rem 1.1rem; font-size: 0.9rem;
+}
+.repair-result-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem;
+}
+.repair-result-title {
+    font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin: 0.2rem 0 0.2rem;
+}
+.repair-result-sub {
+    color: var(--text-muted); font-size: 0.88rem; margin: 0;
+}
+.repair-info-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem;
+    margin: 1.25rem 0;
+}
+@media (max-width: 576px) {
+    .repair-info-grid { grid-template-columns: 1fr; }
+}
+.repair-info-card {
+    display: flex; align-items: center; gap: 0.8rem;
+    background: var(--primary-lighter); border: 1px solid var(--primary-light);
+    border-radius: 12px; padding: 0.9rem 1rem;
+}
+.repair-info-icon {
+    width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px;
+    background: #fff; color: var(--primary-blue);
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+}
+.repair-info-card h5 {
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dark); margin: 0 0 0.2rem;
+}
+.repair-info-card p {
+    font-size: 0.86rem; color: var(--text-muted); margin: 0;
+}
+.repair-section {
+    margin-top: 1.5rem;
+}
+.repair-section h5 {
+    font-size: 0.95rem; font-weight: 700; color: var(--text-dark);
+    display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.6rem;
+}
+.repair-section h5 i { color: var(--primary-blue); }
+.repair-section-text {
+    color: var(--text-muted); font-size: 0.9rem; margin: 0 0 0.4rem;
+}
+.repair-plain-list {
+    list-style: none; margin: 0; padding: 0;
+    border: 1px solid var(--border-light, #e2e8f0); border-radius: 10px; overflow: hidden;
+}
+.repair-plain-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 0.9rem; font-size: 0.88rem; color: var(--text-dark);
+}
+.repair-plain-list li:not(:last-child) {
+    border-bottom: 1px solid #eef1f5;
+}
+.repair-plain-list-value {
+    color: var(--text-muted); font-weight: 600;
+}
+.repair-invoice-box {
+    border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+}
+.repair-invoice-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 1rem; font-size: 0.9rem; color: var(--text-dark);
+    border-bottom: 1px solid #eef1f5;
+}
+.repair-invoice-row:last-child { border-bottom: none; }
+.repair-invoice-total {
+    background: var(--text-dark); color: #fff;
+    font-weight: 700; font-size: 0.98rem;
+}
+.repair-history-list {
+    list-style: none; margin: 0; padding: 0;
+}
+.repair-history-list li {
+    padding: 0.55rem 0; font-size: 0.86rem; color: var(--text-muted);
+    border-bottom: 1px solid #eef1f5;
+}
+.repair-history-list li:last-child { border-bottom: none; }
+.repair-history-list li strong { color: var(--text-dark); }
+.repair-modal-footer {
+    margin-top: 1.75rem; padding-top: 1.25rem;
+    border-top: 1px solid #eef1f5;
+    display: flex; justify-content: center;
 }

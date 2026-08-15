@@ -62,6 +62,8 @@ class RepairJobController extends Controller
             'EndDate' => $data['end_date'] ?? null,
             'Status' => $data['status'] ?? 'Pending',
         ]);
+        $mechanic = $job->MechanicID ? \App\Models\Mechanic::find($job->MechanicID) : null;
+        \App\Models\JobHistory::log($job->JobID, null, $job->Status, $job->MechanicID, $mechanic->FullName ?? null, auth()->id());
         return response()->json(['success' => true, 'message' => 'Repair job created.', 'data' => $job]);
     }
 
@@ -78,6 +80,7 @@ class RepairJobController extends Controller
             'end_date' => 'nullable|date',
             'status' => 'sometimes|string',
         ]);
+        $previousStatus = $job->Status;
         $job->fill(array_filter([
             'VehicleID' => $data['vehicle_id'] ?? null,
             'MechanicID' => array_key_exists('mechanic_id', $data) ? $data['mechanic_id'] : null,
@@ -86,6 +89,12 @@ class RepairJobController extends Controller
             'Status' => $data['status'] ?? null,
         ], fn ($v) => $v !== null));
         $job->save();
+
+        if (isset($data['status']) && $data['status'] !== $previousStatus) {
+            $mechanic = $job->MechanicID ? \App\Models\Mechanic::find($job->MechanicID) : null;
+            \App\Models\JobHistory::log($job->JobID, $previousStatus, $data['status'], $job->MechanicID, $mechanic->FullName ?? null, auth()->id());
+        }
+
         return response()->json(['success' => true, 'message' => 'Job updated.', 'data' => $job]);
     }
 

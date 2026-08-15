@@ -78,13 +78,19 @@ class TrackRepairController extends Controller
         $estimate = null;
         if ($invoice) {
             $totalPaid = (float) $invoice->payments()->sum('Amount');
+            $latestPayment = $invoice->payments()->orderByDesc('PaymentDate')->orderByDesc('PaymentID')->first();
             $estimate = [
+                'invoice_id' => $invoice->InvoiceID,
+                'invoice_date' => $invoice->InvoiceDate,
                 'labour_charges' => (float) $invoice->LabourCharges,
                 'spare_parts_cost' => (float) $invoice->SparePartsCost,
+                'tax_rate' => (float) $invoice->TaxRate,
+                'discount_rate' => (float) $invoice->DiscountRate,
                 'taxes' => (float) $invoice->Taxes,
                 'discounts' => (float) $invoice->Discounts,
                 'total_amount' => (float) $invoice->TotalAmount,
                 'total_paid' => $totalPaid,
+                'payment_method' => $latestPayment->PaymentMethod ?? null,
                 'payment_status' => $totalPaid <= 0 ? 'Pending' : ($totalPaid + 0.01 < $invoice->TotalAmount ? 'Partial' : 'Paid'),
                 'items' => $invoice->items->map(fn ($i) => [
                     'part_name' => $i->sparePart->PartName ?? 'Unknown part',
@@ -123,6 +129,8 @@ class TrackRepairController extends Controller
             'model' => $vehicle->Model,
             'year' => $vehicle->Year,
             'owner_name' => $vehicle->customer->FullName ?? null,
+            'owner_phone' => $vehicle->customer->Phone ?? null,
+            'owner_email' => $vehicle->customer->Email ?? null,
         ];
     }
 }

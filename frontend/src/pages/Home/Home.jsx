@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { statsApi } from '../../api';
-import { useReveal } from '../../components';
+import { useReveal, showBsModal } from '../../components';
 import './Home.css';
 
 const STAT_KEYS = [
@@ -90,7 +89,7 @@ export default function Home() {
               <h1 className="hero-title">Smart Garage <br /><span className="highlight">Services &amp; Stock</span> Management</h1>
               <p className="hero-subtitle">Automate vehicle repairs, track spare parts inventory, manage customers, and generate invoices — all from one centralized platform.</p>
               <div className="hero-actions">
-                <Link to="/track-repair" className="btn-outline-custom"><i className="bi bi-search"></i> View Repair Status</Link>
+                <button type="button" className="btn-outline-custom" onClick={() => showBsModal('trackRepairModal')}><i className="bi bi-search"></i> View Repair Status</button>
               </div>
               <div className="hero-stats">
                 {STAT_KEYS.map((s) => (

@@ -3405,10 +3405,7 @@
                 "symfony/service-contracts": "^2.5|^3",
                 "symfony/string": "^7.4.6|^8.0.6"
             },
-            "conflict": {
-                "symfony/dependency-injection": "<8.1",
-                "symfony/event-dispatcher": "<8.1"
-            },
+            "conflict": {},
             "provide": {
                 "psr/log-implementation": "1.0|2.0|3.0"
             },
@@ -3643,9 +3640,7 @@
                 "symfony/polyfill-php85": "^1.32",
                 "symfony/var-dumper": "^7.4|^8.0"
             },
-            "conflict": {
-                "symfony/deprecation-contracts": "<2.5"
-            },
+            "conflict": {},
             "require-dev": {
                 "symfony/console": "^7.4|^8.0",
                 "symfony/deprecation-contracts": "^2.5|^3",
@@ -3723,10 +3718,7 @@
                 "symfony/deprecation-contracts": "^2.5|^3",
                 "symfony/event-dispatcher-contracts": "^2.5|^3"
             },
-            "conflict": {
-                "symfony/security-http": "<7.4",
-                "symfony/service-contracts": "<2.5"
-            },
+            "conflict": {},
             "provide": {
                 "psr/event-dispatcher-implementation": "1.0",
                 "symfony/event-dispatcher-implementation": "2.0|3.0"
@@ -3957,9 +3949,7 @@
                 "symfony/deprecation-contracts": "^2.5|^3",
                 "symfony/polyfill-mbstring": "^1.1"
             },
-            "conflict": {
-                "doctrine/dbal": "<4.3"
-            },
+            "conflict": {},
             "require-dev": {
                 "doctrine/dbal": "^4.3",
                 "predis/predis": "^1.1|^2.0",
@@ -4042,16 +4032,7 @@
                 "symfony/http-foundation": "^7.4|^8.0",
                 "symfony/polyfill-ctype": "^1.8"
             },
-            "conflict": {
-                "symfony/dependency-injection": "<8.1",
-                "symfony/flex": "<2.10",
-                "symfony/http-client-contracts": "<2.5",
-                "symfony/serializer": "<7.4.15|>=8.0,<8.0.15|>=8.1,<8.1.2",
-                "symfony/translation-contracts": "<2.5",
-                "symfony/var-dumper": "<8.1",
-                "symfony/web-profiler-bundle": "<8.1",
-                "twig/twig": "<3.21"
-            },
+            "conflict": {},
             "provide": {
                 "psr/log-implementation": "1.0|2.0|3.0"
             },
@@ -4152,9 +4133,7 @@
                 "symfony/mime": "^7.4|^8.0",
                 "symfony/service-contracts": "^2.5|^3"
             },
-            "conflict": {
-                "symfony/http-client-contracts": "<2.5"
-            },
+            "conflict": {},
             "require-dev": {
                 "symfony/console": "^7.4|^8.0",
                 "symfony/http-client": "^7.4|^8.0",
@@ -4228,11 +4207,7 @@
                 "symfony/polyfill-intl-idn": "^1.10",
                 "symfony/polyfill-mbstring": "^1.0"
             },
-            "conflict": {
-                "egulias/email-validator": "~3.0.0",
-                "phpdocumentor/reflection-docblock": "<5.2|>=7",
-                "phpdocumentor/type-resolver": "<1.5.1"
-            },
+            "conflict": {},
             "require-dev": {
                 "egulias/email-validator": "^2.1.10|^3.1|^4",
                 "league/html-to-markdown": "^5.0",
@@ -5377,9 +5352,7 @@
                 "symfony/polyfill-intl-normalizer": "^1.0",
                 "symfony/polyfill-mbstring": "^1.0"
             },
-            "conflict": {
-                "symfony/translation-contracts": "<2.5"
-            },
+            "conflict": {},
             "require-dev": {
                 "symfony/emoji": "^7.4|^8.0",
                 "symfony/http-client": "^7.4|^8.0",
@@ -5465,11 +5438,7 @@
                 "symfony/polyfill-mbstring": "^1.0",
                 "symfony/translation-contracts": "^3.6.1"
             },
-            "conflict": {
-                "nikic/php-parser": "<5.0",
-                "symfony/http-client-contracts": "<2.5",
-                "symfony/service-contracts": "<2.5"
-            },
+            "conflict": {},
             "provide": {
                 "symfony/translation-implementation": "2.3|3.0"
             },
@@ -5717,10 +5686,7 @@
                 "php": ">=8.2",
                 "symfony/polyfill-mbstring": "^1.0"
             },
-            "conflict": {
-                "symfony/console": "<7.4",
-                "symfony/error-handler": "<7.4"
-            },
+            "conflict": {},
             "require-dev": {
                 "symfony/console": "^7.4|^8.0",
                 "symfony/http-kernel": "^7.4|^8.0",
