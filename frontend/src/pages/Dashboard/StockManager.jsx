@@ -4,6 +4,16 @@ import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, printElem
 import { useAuth, useToast } from '../../context';
 import { inventoryApi, notificationsApi, authApi } from '../../api';
 
+const NOTIFICATION_ICONS = { job: 'bi-plus-circle-fill', stock: 'bi-box-seam-fill', payment: 'bi-cash-coin', system: 'bi-info-circle-fill' };
+const NOTIFICATION_COLORS = { job: '#2563eb', stock: '#d97706', payment: '#16a34a', system: '#64748b' };
+
+function fmtDateTime(v) {
+  if (!v) return '-';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  return d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: 'numeric', minute: '2-digit' });
+}
+
 const NAV_SECTIONS = [
   { title: 'Overview', items: [{ key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' }] },
   {
@@ -99,8 +109,12 @@ export default function StockManager() {
   const supplierCrud = withCrud('Supplier', { save: inventoryApi.saveSupplier, remove: inventoryApi.removeSupplier }, supplierForm, setSupplierForm, emptySupplier, 'supplierModal', 'SupplierID');
 
   const viewPart = useViewModal('viewPartModal');
+  const viewCategory = useViewModal('viewCategoryModal');
   const viewSupplier = useViewModal('viewSupplierModal');
   const viewPurchase = useViewModal('viewPurchaseModal');
+  const viewNotification = useViewModal('viewNotificationModal');
+  const viewRequest = useViewModal('viewRequestModal');
+  const viewTransaction = useViewModal('viewTransactionModal');
 
   const openPurchase = () => { setPurchaseForm(emptyPurchase); showBsModal('purchaseModal'); };
   const savePurchase = async (e) => {
@@ -246,10 +260,19 @@ export default function StockManager() {
                 rows={categories}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewCategory.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" onClick={() => categoryCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" onClick={() => categoryCrud.remove(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewCategoryModal" title="Category Details" icon="bi-tags-fill"
+                fields={viewCategory.row && [
+                  { label: 'Category Name', value: viewCategory.row.CategoryName },
+                  { label: 'Description', value: viewCategory.row.Description },
+                  { label: 'Spare Parts in Category', value: spareParts.filter((p) => p.CategoryID === viewCategory.row.CategoryID).length },
+                ]}
               />
               <Modal id="categoryModal" title={categoryForm.CategoryID ? 'Edit Category' : 'Add Category'} icon="bi-tags-fill">
                 <form onSubmit={categoryCrud.save}>
@@ -367,48 +390,105 @@ export default function StockManager() {
           )}
 
           {activeTab === 'requests' && (
-            <DataTable
-              title="Spare Part Requests from Mechanics" icon="bi-box-seam" searchPlaceholder="Search requests..."
-              columns={[
-                { key: 'SparePartID', label: 'Part', render: (r) => partName(r.SparePartID) },
-                { key: 'JobID', label: 'Job #' },
-                { key: 'QuantityRequested', label: 'Qty' },
-                { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status || 'Pending'} /> },
-              ]}
-              rows={requests}
-              renderActions={(r) => (
-                (!r.Status || r.Status === 'Pending') ? (
+            <>
+              <DataTable
+                title="Spare Part Requests from Mechanics" icon="bi-box-seam" searchPlaceholder="Search requests..."
+                columns={[
+                  { key: 'SparePartID', label: 'Part', render: (r) => partName(r.SparePartID) },
+                  { key: 'JobID', label: 'Job #' },
+                  { key: 'QuantityRequested', label: 'Qty' },
+                  { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status || 'Pending'} /> },
+                ]}
+                rows={requests}
+                renderActions={(r) => (
                   <>
-                    <button className="btn-icon" title="Approve" onClick={() => approveRequest(r)}><i className="bi bi-check-lg"></i></button>
-                    <button className="btn-icon danger" title="Reject" onClick={() => rejectRequest(r)}><i className="bi bi-x-lg"></i></button>
+                    <button className="btn-action view" title="View" onClick={() => viewRequest.open(r)}><i className="bi bi-eye"></i></button>
+                    {(!r.Status || r.Status === 'Pending') && (
+                      <>
+                        <button className="btn-icon" title="Approve" onClick={() => approveRequest(r)}><i className="bi bi-check-lg"></i></button>
+                        <button className="btn-icon danger" title="Reject" onClick={() => rejectRequest(r)}><i className="bi bi-x-lg"></i></button>
+                      </>
+                    )}
                   </>
-                ) : null
-              )}
-            />
+                )}
+              />
+              <DetailsModal
+                id="viewRequestModal" title="Spare Part Request" icon="bi-box-seam"
+                fields={viewRequest.row && [
+                  { label: 'Part', value: viewRequest.row.SparePartName || partName(viewRequest.row.SparePartID) },
+                  { label: 'Requested By', value: viewRequest.row.MechanicName },
+                  { label: 'Job #', value: viewRequest.row.JobID },
+                  { label: 'Vehicle Plate', value: viewRequest.row.JobPlate },
+                  { label: 'Quantity Requested', value: viewRequest.row.QuantityRequested },
+                  { label: 'Reason', value: viewRequest.row.Reason },
+                  { label: 'Status', value: viewRequest.row.Status || 'Pending' },
+                  { label: 'Decided At', value: fmtDateTime(viewRequest.row.DecidedAt) },
+                ]}
+              />
+            </>
           )}
 
           {activeTab === 'transactions' && (
-            <DataTable
-              title="Stock Movement Log" icon="bi-journal-text" searchPlaceholder="Search stock log..."
-              columns={[
-                { key: 'SparePartID', label: 'Part', render: (r) => partName(r.SparePartID) },
-                { key: 'TransactionType', label: 'Type' },
-                { key: 'Quantity', label: 'Quantity' },
-                { key: 'CreatedAt', label: 'Date' },
-              ]}
-              rows={transactions}
-            />
+            <>
+              <DataTable
+                title="Stock Movement Log" icon="bi-journal-text" searchPlaceholder="Search stock log..."
+                columns={[
+                  { key: 'SparePartID', label: 'Part', render: (r) => r.PartName || partName(r.SparePartID) },
+                  { key: 'TransactionType', label: 'Type' },
+                  { key: 'Quantity', label: 'Quantity' },
+                  { key: 'CreatedAt', label: 'Date', render: (r) => fmtDateTime(r.TransactionDate || r.CreatedAt) },
+                ]}
+                rows={transactions}
+                renderActions={(r) => (
+                  <button className="btn-action view" title="View" onClick={() => viewTransaction.open(r)}><i className="bi bi-eye"></i></button>
+                )}
+              />
+              <DetailsModal
+                id="viewTransactionModal" title="Stock Transaction" icon="bi-journal-text"
+                fields={viewTransaction.row && [
+                  { label: 'Part', value: viewTransaction.row.PartName || partName(viewTransaction.row.SparePartID) },
+                  { label: 'Type', value: viewTransaction.row.TransactionType },
+                  { label: 'Quantity Change', value: viewTransaction.row.Quantity },
+                  { label: 'Stock Before', value: viewTransaction.row.BeforeQty },
+                  { label: 'Stock After', value: viewTransaction.row.AfterQty },
+                  { label: 'Unit Price', value: viewTransaction.row.UnitPrice != null ? `${Number(viewTransaction.row.UnitPrice).toLocaleString('en-US')} RWF` : null },
+                  { label: 'Performed By', value: viewTransaction.row.UserName },
+                  { label: 'Date', value: fmtDateTime(viewTransaction.row.TransactionDate || viewTransaction.row.CreatedAt) },
+                ]}
+              />
+            </>
           )}
 
           {activeTab === 'notifications' && (
-            <DataTable
-              title="Notifications" icon="bi-bell-fill" searchPlaceholder="Search notifications..."
-              addLabel="Mark All Read"
-              onAdd={async () => { const r = await notificationsApi.markAllRead(); if (r.success) loadAll(); }}
-              columns={[{ key: 'Title', label: 'Title' }, { key: 'Message', label: 'Message' }, { key: 'CreatedAt', label: 'Date' }]}
-              rows={notifications}
-            />
+            <div className="card-custom p-4">
+              <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h6 style={{ fontWeight: 700 }}><i className="bi bi-bell-fill" style={{ color: 'var(--primary-blue)' }}></i> All Notifications</h6>
+                <button className="btn-outline-blue btn-sm" onClick={async () => { const r = await notificationsApi.markAllRead(); if (r.success) loadAll(); }}><i className="bi bi-check-all"></i> Mark All Read</button>
+              </div>
+              {notifications.length === 0 ? (
+                <div className="text-center py-4 text-muted">No notifications yet.</div>
+              ) : notifications.map((n) => (
+                <div key={n.NotificationID} className={`list-group-item d-flex gap-3 align-items-center py-3 border-bottom ${(n.IsRead || n.is_read) ? 'opacity-75' : ''}`}>
+                  <i className={`bi ${NOTIFICATION_ICONS[n.Type] || 'bi-info-circle-fill'}`} style={{ color: NOTIFICATION_COLORS[n.Type] || '#64748b', fontSize: '1.3rem' }}></i>
+                  <div className="flex-grow-1">
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{n.Message}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fmtDateTime(n.CreatedAt)}</div>
+                  </div>
+                  {!(n.IsRead || n.is_read) && <span className="badge bg-primary rounded-pill">New</span>}
+                  <button className="btn-action view" title="View" onClick={() => { viewNotification.open(n); markOneRead(n); }}><i className="bi bi-eye"></i></button>
+                </div>
+              ))}
+            </div>
           )}
+          <DetailsModal
+            id="viewNotificationModal" title="Notification Details" icon="bi-bell-fill"
+            fields={viewNotification.row && [
+              { label: 'Type', value: viewNotification.row.Type },
+              { label: 'Message', value: viewNotification.row.Message },
+              { label: 'Sent', value: fmtDateTime(viewNotification.row.CreatedAt) },
+              { label: 'Status', value: (viewNotification.row.IsRead || viewNotification.row.is_read) ? 'Read' : 'Unread' },
+            ]}
+          />
 
           <Modal id="profileModal" title="Profile Settings" icon="bi-gear">
             <form onSubmit={saveProfile}>

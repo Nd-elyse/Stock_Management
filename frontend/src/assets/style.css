@@ -3,6 +3,13 @@
 * { 
     margin:0; padding:0;
     box-sizing:border-box; }
+html {
+     /* Base scale for the whole app (both the public site and dashboards,
+        which share this stylesheet load). Everything below is sized in
+        rem, so this one change tightens text and spacing consistently
+        system-wide without disturbing the existing size hierarchy. */
+     font-size: 14.5px;
+}
 html, body {
      overflow-x:hidden;
      min-height:100%; }
@@ -633,9 +640,10 @@ button[data-loading="true"]::after {
 
 /* ===== MODAL CUSTOM ===== */
 .modal-custom .modal-content { border-radius:20px; border:none; box-shadow:0 20px 60px rgba(0,0,0,0.15); }
-.modal-custom .modal-header { padding:1.5rem; border-bottom:1px solid rgba(74,144,217,0.10); }
-.modal-custom .modal-title { font-weight:700; color:var(--text-dark); }
-.modal-custom .modal-footer { padding:1rem 1.5rem; border-top:1px solid rgba(74,144,217,0.10); }
+.modal-custom .modal-header { padding:1.15rem 1.35rem; border-bottom:1px solid rgba(74,144,217,0.10); }
+.modal-custom .modal-title { font-weight:700; font-size:1.1rem; color:var(--text-dark); }
+.modal-custom .modal-body { padding:1.35rem; }
+.modal-custom .modal-footer { padding:0.9rem 1.35rem; border-top:1px solid rgba(74,144,217,0.10); }
 
 /* ===== FOOTER ===== */
 .footer-custom { background:var(--white); padding:3rem 0 1.5rem; border-top:2px solid rgba(74,144,217,0.06); }

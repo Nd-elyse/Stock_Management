@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, StatCard, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
 import { useAuth, useToast } from '../../context';
 import { jobsApi, customersApi, inventoryApi, notificationsApi, authApi } from '../../api';
 
@@ -52,6 +52,8 @@ export default function Mechanic() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const viewNotification = useViewModal('viewNotificationModal');
+  const viewJob = useViewModal('viewJobModal');
 
   const [jobs, setJobs] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -231,7 +233,7 @@ export default function Mechanic() {
               </div>
               <div className="table-responsive">
                 <table className="table table-custom">
-                  <thead><tr><th>Job ID</th><th>Vehicle</th><th>Customer</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
+                  <thead><tr><th>Job ID</th><th>Vehicle</th><th>Customer</th><th>Status</th><th>Action</th><th>Update Status</th></tr></thead>
                   <tbody>
                     {myJobs.length === 0 ? (
                       <tr><td colSpan={6} className="text-center text-muted">No jobs assigned yet.</td></tr>
@@ -242,7 +244,8 @@ export default function Mechanic() {
                         <td>{j.CustomerName || '-'}</td>
                         <td><JobStatusBadge status={j.Status} /></td>
                         <td className="text-center">
-                          <button className="btn-action view" title="Record notes" onClick={() => openNotes(j)}><i className="bi bi-pencil-square"></i></button>
+                          <button className="btn-action view" title="View" onClick={() => viewJob.open(j)}><i className="bi bi-eye"></i></button>
+                          <button className="btn-icon" title="Record notes" onClick={() => openNotes(j)}><i className="bi bi-pencil-square"></i></button>
                         </td>
                         <td>
                           <select className="status-select" value={j.Status || 'Pending'} onChange={(e) => updateJobStatus(j, e.target.value)}>
@@ -256,6 +259,17 @@ export default function Mechanic() {
               </div>
             </div>
           )}
+          <DetailsModal
+            id="viewJobModal" title="Job Details" icon="bi-clipboard-check-fill"
+            fields={viewJob.row && [
+              { label: 'Job ID', value: viewJob.row.JobID },
+              { label: 'Vehicle', value: vehiclePlate(viewJob.row.VehicleID) },
+              { label: 'Customer', value: viewJob.row.CustomerName },
+              { label: 'Status', value: viewJob.row.Status },
+              { label: 'Start Date', value: viewJob.row.StartDate },
+              { label: 'End Date', value: viewJob.row.EndDate },
+            ]}
+          />
 
           <Modal id="diagnosticsModal" title={`Record Notes${notesJobId ? ` - Job ${notesJobId} (${notesPlate})` : ''}`} icon="bi-clipboard2-plus">
             <form onSubmit={saveNotes}>
@@ -354,7 +368,10 @@ export default function Mechanic() {
                         <td>{vehiclePlate(h.VehicleID)}</td>
                         <td><span className="badge-status badge-delivered">{h.Status}</span></td>
                         <td>{h.Notes || '-'}</td>
-                        <td><button className="btn-action delete" onClick={() => deleteHistoryJob(h)}><i className="bi bi-trash"></i></button></td>
+                        <td>
+                          <button className="btn-action view" title="View" onClick={() => viewJob.open(h)}><i className="bi bi-eye"></i></button>
+                          <button className="btn-action delete" title="Delete" onClick={() => deleteHistoryJob(h)}><i className="bi bi-trash"></i></button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -378,11 +395,20 @@ export default function Mechanic() {
                     <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{n.Message}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{n.CreatedAt ? new Date(n.CreatedAt).toLocaleString() : ''}</div>
                   </div>
-                  {!n.IsRead && <span className="badge bg-primary rounded-pill">New</span>}
+                  {!(n.IsRead || n.is_read) && <span className="badge bg-primary rounded-pill">New</span>}
+                  <button className="btn-action view" title="View" onClick={() => { viewNotification.open(n); markOneRead(n); }}><i className="bi bi-eye"></i></button>
                 </div>
               ))}
             </div>
           )}
+          <DetailsModal
+            id="viewNotificationModal" title="Notification Details" icon="bi-bell-fill"
+            fields={viewNotification.row && [
+              { label: 'Message', value: viewNotification.row.Message },
+              { label: 'Sent', value: viewNotification.row.CreatedAt ? new Date(viewNotification.row.CreatedAt).toLocaleString() : '-' },
+              { label: 'Status', value: (viewNotification.row.IsRead || viewNotification.row.is_read) ? 'Read' : 'Unread' },
+            ]}
+          />
 
           <Modal id="profileModal" title="Profile Settings" icon="bi-gear">
             <form onSubmit={saveProfile}>

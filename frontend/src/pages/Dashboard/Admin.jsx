@@ -39,6 +39,7 @@ const NOTIFICATION_COLORS = { job: '#2563eb', stock: '#d97706', payment: '#16a34
 const emptyUser = { UserID: null, Username: '', Password: '', ConfirmPassword: '', Role: '', FullName: '', Email: '', Phone: '', Status: 'Active', MechanicSpecialization: '', MechanicSalary: '' };
 const emptyMechanic = { MechanicID: null, FullName: '', Phone: '', Specialization: '', Salary: '' };
 const emptySupplier = { SupplierID: null, CompanyName: '', Phone: '', Email: '', Address: '' };
+const emptyPart = { SparePartID: null, PartName: '', CategoryID: '', SupplierID: '', Quantity: '', ReorderLevel: '', UnitPrice: '' };
 const emptyNotification = { NotificationID: null, UserID: '', Type: 'system', Message: '', Link: '' };
 
 function fmtMoney(v) {
@@ -143,10 +144,16 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [reportTab, setReportTab] = useState('repairs');
   const viewPart = useViewModal('viewPartModal');
+  const viewUser = useViewModal('viewUserModal');
+  const viewMechanic = useViewModal('viewMechanicModal');
+  const viewSupplier = useViewModal('viewSupplierModal');
+  const viewNotification = useViewModal('viewNotificationModal');
+  const viewMessage = useViewModal('viewMessageModal');
 
   const [users, setUsers] = useState([]);
   const [mechanics, setMechanics] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [spareParts, setSpareParts] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -161,15 +168,17 @@ export default function Admin() {
   const [userForm, setUserForm] = useState(emptyUser);
   const [mechanicForm, setMechanicForm] = useState(emptyMechanic);
   const [supplierForm, setSupplierForm] = useState(emptySupplier);
+  const [partForm, setPartForm] = useState(emptyPart);
   const [notificationForm, setNotificationForm] = useState(emptyNotification);
   const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '', current_password: '', new_password: '', confirm_password: '' });
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, m, s, sp, n, msg, c, v, j, inv, pay, pur] = await Promise.all([
+    const [u, m, s, cat, sp, n, msg, c, v, j, inv, pay, pur] = await Promise.all([
       usersApi.list(),
       jobsApi.listMechanics(),
       inventoryApi.listSuppliers(),
+      inventoryApi.listCategories(),
       inventoryApi.listSpareParts(),
       notificationsApi.listAll(),
       contactApi.list(),
@@ -183,6 +192,7 @@ export default function Admin() {
     if (u.success) setUsers(u.data || []);
     if (m.success) setMechanics(m.data || []);
     if (s.success) setSuppliers(s.data || []);
+    if (cat.success) setCategories(cat.data || []);
     if (sp.success) setSpareParts(sp.data || []);
     if (n.success) setNotifications(n.data || []);
     if (msg.success) setMessages(msg.data || []);
@@ -277,6 +287,27 @@ export default function Admin() {
     if (res.success) loadAll();
   };
 
+  // ---- Spare Parts CRUD ----
+  const openAddPart = () => { setPartForm(emptyPart); showBsModal('partModal'); };
+  const openEditPart = (p) => { setPartForm({ ...emptyPart, ...p }); showBsModal('partModal'); };
+  const savePart = async (e) => {
+    e.preventDefault();
+    const res = await inventoryApi.saveSparePart(partForm);
+    if (res.success) {
+      showToast(partForm.SparePartID ? 'Spare part updated.' : 'Spare part added.', 'success');
+      hideBsModal('partModal');
+      loadAll();
+    } else {
+      showToast(res.message || 'Could not save spare part.', 'danger');
+    }
+  };
+  const deletePart = async (p) => {
+    if (!(await ConfirmDelete('spare part', p.PartName))) return;
+    const res = await inventoryApi.removeSparePart(p.SparePartID);
+    showToast(res.success ? 'Spare part deleted.' : res.message || 'Could not delete spare part.', res.success ? 'success' : 'danger');
+    if (res.success) loadAll();
+  };
+
   // ---- Notifications ----
   const markAllRead = async () => {
     const res = await notificationsApi.markAllRead();
@@ -321,6 +352,11 @@ export default function Admin() {
   const markAllMessagesRead = async () => {
     const res = await contactApi.markAllRead();
     if (res.success) { showToast('All messages marked as read.', 'success'); loadAll(); }
+  };
+  const markOneMessageRead = async (m) => {
+    if (m.IsRead || m.is_read) return;
+    setMessages((prev) => prev.map((x) => (x.MessageID === m.MessageID ? { ...x, IsRead: true } : x)));
+    await contactApi.markRead(m.MessageID);
   };
   const deleteMessage = async (m) => {
     if (!(await ConfirmDelete('message', m.Subject || m.FullName))) return;
@@ -596,12 +632,23 @@ export default function Admin() {
                     <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{n.Message}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fmtDateTime(n.CreatedAt)}</div>
                   </div>
+                  {!(n.IsRead || n.is_read) && <span className="badge bg-primary rounded-pill">New</span>}
+                  <button className="btn-action view" title="View" onClick={() => { viewNotification.open(n); markOneRead(n); }}><i className="bi bi-eye"></i></button>
                   <button className="btn-icon" title="Edit" onClick={() => openEditNotification(n)}><i className="bi bi-pencil"></i></button>
                   <button className="btn-icon danger" title="Delete" onClick={() => deleteNotification(n)}><i className="bi bi-trash"></i></button>
                 </div>
               ))}
             </div>
           )}
+          <DetailsModal
+            id="viewNotificationModal" title="Notification Details" icon="bi-bell-fill"
+            fields={viewNotification.row && [
+              { label: 'Type', value: viewNotification.row.Type },
+              { label: 'Message', value: viewNotification.row.Message },
+              { label: 'Sent', value: fmtDateTime(viewNotification.row.CreatedAt) },
+              { label: 'Status', value: (viewNotification.row.IsRead || viewNotification.row.is_read) ? 'Read' : 'Unread' },
+            ]}
+          />
 
           {activeTab === 'messages' && (
             <div className="card-custom p-4">
@@ -622,12 +669,25 @@ export default function Admin() {
                   </div>
                   <div className="d-flex align-items-start gap-2">
                     {!(m.IsRead || m.is_read) && <span className="badge bg-primary rounded-pill">New</span>}
+                    <button className="btn-action view" title="View" onClick={() => { viewMessage.open(m); markOneMessageRead(m); }}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon danger" title="Delete" onClick={() => deleteMessage(m)}><i className="bi bi-trash"></i></button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+          <DetailsModal
+            id="viewMessageModal" title="Contact Message" icon="bi-envelope-fill"
+            fields={viewMessage.row && [
+              { label: 'From', value: viewMessage.row.FullName },
+              { label: 'Email', value: viewMessage.row.Email },
+              { label: 'Phone', value: viewMessage.row.Phone },
+              { label: 'Subject', value: viewMessage.row.Subject || 'Technical Support' },
+              { label: 'Message', value: viewMessage.row.Message },
+              { label: 'Received', value: fmtDateTime(viewMessage.row.CreatedAt) },
+              { label: 'Status', value: (viewMessage.row.IsRead || viewMessage.row.is_read) ? 'Read' : 'Unread' },
+            ]}
+          />
 
           {activeTab === 'users' && (
             <>
@@ -653,10 +713,22 @@ export default function Admin() {
                 rows={users}
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewUser.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" title="Edit" onClick={() => openEditUser(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" title="Delete" onClick={() => deleteUser(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewUserModal" title="User Details" icon="bi-people-fill"
+                fields={viewUser.row && [
+                  { label: 'Full Name', value: viewUser.row.FullName },
+                  { label: 'Username', value: viewUser.row.Username },
+                  { label: 'Role', value: viewUser.row.Role },
+                  { label: 'Email', value: viewUser.row.Email },
+                  { label: 'Phone', value: viewUser.row.Phone },
+                  { label: 'Status', value: viewUser.row.Status },
+                ]}
               />
             </>
           )}
@@ -687,10 +759,22 @@ export default function Admin() {
                 emptyText="No mechanics found. Mechanics are added by the Admin from Manage Users."
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewMechanic.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" title="Edit" onClick={() => openEditMechanic(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" title="Delete" onClick={() => deleteMechanic(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewMechanicModal" title="Mechanic Details" icon="bi-person-vcard-fill"
+                fields={viewMechanic.row && [
+                  { label: 'Name', value: viewMechanic.row.FullName },
+                  { label: 'Specialty', value: viewMechanic.row.Specialization },
+                  { label: 'Phone', value: viewMechanic.row.Phone },
+                  { label: 'Salary', value: `${Number(viewMechanic.row.Salary || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Assigned Jobs', value: viewMechanic.row.AssignedJobs },
+                  { label: 'Status', value: viewMechanic.row.Status },
+                ]}
               />
             </>
           )}
@@ -718,10 +802,21 @@ export default function Admin() {
                 emptyText="No suppliers found."
                 renderActions={(r) => (
                   <>
+                    <button className="btn-action view" title="View" onClick={() => viewSupplier.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-icon" title="Edit" onClick={() => openEditSupplier(r)}><i className="bi bi-pencil"></i></button>
                     <button className="btn-icon danger" title="Delete" onClick={() => deleteSupplier(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
+              />
+              <DetailsModal
+                id="viewSupplierModal" title="Supplier Details" icon="bi-truck"
+                fields={viewSupplier.row && [
+                  { label: 'Company Name', value: viewSupplier.row.CompanyName },
+                  { label: 'Phone', value: viewSupplier.row.Phone },
+                  { label: 'Email', value: viewSupplier.row.Email },
+                  { label: 'Address', value: viewSupplier.row.Address },
+                  { label: 'Total Purchases', value: viewSupplier.row.PurchaseCount },
+                ]}
               />
             </>
           )}
@@ -735,6 +830,8 @@ export default function Admin() {
               <DataTable
                 title="Spare Parts Inventory"
                 icon="bi-boxes"
+                addLabel="Add Spare Part"
+                onAdd={openAddPart}
                 searchPlaceholder="Search spare parts..."
                 columns={[
                   { key: 'PartName', label: 'Part Name' },
@@ -749,9 +846,13 @@ export default function Admin() {
                   },
                 ]}
                 rows={spareParts}
-                emptyText="No spare parts found. Inventory is managed by the Stock Manager."
+                emptyText="No spare parts found."
                 renderActions={(r) => (
-                  <button className="btn-action view" title="View" onClick={() => viewPart.open(r)}><i className="bi bi-eye"></i></button>
+                  <>
+                    <button className="btn-action view" title="View" onClick={() => viewPart.open(r)}><i className="bi bi-eye"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => openEditPart(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => deletePart(r)}><i className="bi bi-trash"></i></button>
+                  </>
                 )}
               />
               <DetailsModal
@@ -766,6 +867,43 @@ export default function Admin() {
                   { label: 'Stock Status', value: Number(viewPart.row.Quantity) <= Number(viewPart.row.ReorderLevel) ? 'Low Stock' : 'In Stock' },
                 ]}
               />
+              <Modal id="partModal" title={partForm.SparePartID ? 'Edit Spare Part' : 'Add Spare Part'} icon="bi-boxes">
+                <form onSubmit={savePart}>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Part Name</label>
+                      <input className="form-control form-control-custom" required value={partForm.PartName ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, PartName: e.target.value }))} />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Category</label>
+                      <select className="form-select form-control-custom" required value={partForm.CategoryID ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, CategoryID: e.target.value }))}>
+                        <option value="">Select category...</option>
+                        {categories.map((c) => <option key={c.CategoryID} value={c.CategoryID}>{c.CategoryName}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Supplier</label>
+                      <select className="form-select form-control-custom" required value={partForm.SupplierID ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, SupplierID: e.target.value }))}>
+                        <option value="">Select supplier...</option>
+                        {suppliers.map((s) => <option key={s.SupplierID} value={s.SupplierID}>{s.CompanyName}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Unit Price (RWF)</label>
+                      <input type="number" min="0" step="0.01" className="form-control form-control-custom" required value={partForm.UnitPrice ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, UnitPrice: e.target.value }))} />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Quantity In Stock</label>
+                      <input type="number" min="0" className="form-control form-control-custom" required value={partForm.Quantity ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, Quantity: e.target.value }))} />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Reorder Level</label>
+                      <input type="number" min="0" className="form-control form-control-custom" required value={partForm.ReorderLevel ?? ''} onChange={(e) => setPartForm((f) => ({ ...f, ReorderLevel: e.target.value }))} />
+                    </div>
+                  </div>
+                  <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Spare Part</button>
+                </form>
+              </Modal>
             </>
           )}
 

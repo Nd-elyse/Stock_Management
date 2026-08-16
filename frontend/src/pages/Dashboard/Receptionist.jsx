@@ -4,6 +4,16 @@ import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard,
 import { useAuth, useToast } from '../../context';
 import { customersApi, jobsApi, billingApi, notificationsApi, authApi } from '../../api';
 
+const NOTIFICATION_ICONS = { job: 'bi-plus-circle-fill', stock: 'bi-box-seam-fill', payment: 'bi-cash-coin', system: 'bi-info-circle-fill' };
+const NOTIFICATION_COLORS = { job: '#2563eb', stock: '#d97706', payment: '#16a34a', system: '#64748b' };
+
+function fmtDateTime(v) {
+  if (!v) return '-';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  return d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: 'numeric', minute: '2-digit' });
+}
+
 const NAV_SECTIONS = [
   { title: 'Overview', items: [{ key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' }] },
   {
@@ -126,6 +136,7 @@ export default function Receptionist() {
   const viewJob = useViewModal('viewJobModal');
   const viewInvoice = useViewModal('viewInvoiceModal');
   const viewPayment = useViewModal('viewPaymentModal');
+  const viewNotification = useViewModal('viewNotificationModal');
 
   const customerCrud = withCrud('Customer', { save: customersApi.saveCustomer, remove: customersApi.removeCustomer }, customerForm, setCustomerForm, emptyCustomer, 'customerModal', loadAll);
   const vehicleCrud = withCrud('Vehicle', { save: customersApi.saveVehicle, remove: customersApi.removeVehicle }, vehicleForm, setVehicleForm, emptyVehicle, 'vehicleModal', loadAll);
@@ -507,14 +518,35 @@ export default function Receptionist() {
           )}
 
           {activeTab === 'notifications' && (
-            <DataTable
-              title="Notifications" icon="bi-bell-fill" searchPlaceholder="Search notifications..."
-              addLabel="Mark All Read"
-              onAdd={async () => { const r = await notificationsApi.markAllRead(); if (r.success) loadAll(); }}
-              columns={[{ key: 'Title', label: 'Title' }, { key: 'Message', label: 'Message' }, { key: 'CreatedAt', label: 'Date' }]}
-              rows={notifications}
-            />
+            <div className="card-custom p-4">
+              <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h6 style={{ fontWeight: 700 }}><i className="bi bi-bell-fill" style={{ color: 'var(--primary-blue)' }}></i> All Notifications</h6>
+                <button className="btn-outline-blue btn-sm" onClick={async () => { const r = await notificationsApi.markAllRead(); if (r.success) loadAll(); }}><i className="bi bi-check-all"></i> Mark All Read</button>
+              </div>
+              {notifications.length === 0 ? (
+                <div className="text-center py-4 text-muted">No notifications yet.</div>
+              ) : notifications.map((n) => (
+                <div key={n.NotificationID} className={`list-group-item d-flex gap-3 align-items-center py-3 border-bottom ${(n.IsRead || n.is_read) ? 'opacity-75' : ''}`}>
+                  <i className={`bi ${NOTIFICATION_ICONS[n.Type] || 'bi-info-circle-fill'}`} style={{ color: NOTIFICATION_COLORS[n.Type] || '#64748b', fontSize: '1.3rem' }}></i>
+                  <div className="flex-grow-1">
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{n.Message}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fmtDateTime(n.CreatedAt)}</div>
+                  </div>
+                  {!(n.IsRead || n.is_read) && <span className="badge bg-primary rounded-pill">New</span>}
+                  <button className="btn-action view" title="View" onClick={() => { viewNotification.open(n); markOneRead(n); }}><i className="bi bi-eye"></i></button>
+                </div>
+              ))}
+            </div>
           )}
+          <DetailsModal
+            id="viewNotificationModal" title="Notification Details" icon="bi-bell-fill"
+            fields={viewNotification.row && [
+              { label: 'Type', value: viewNotification.row.Type },
+              { label: 'Message', value: viewNotification.row.Message },
+              { label: 'Sent', value: fmtDateTime(viewNotification.row.CreatedAt) },
+              { label: 'Status', value: (viewNotification.row.IsRead || viewNotification.row.is_read) ? 'Read' : 'Unread' },
+            ]}
+          />
 
           <Modal id="profileModal" title="Profile Settings" icon="bi-gear">
             <form onSubmit={saveProfile}>

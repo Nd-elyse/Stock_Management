@@ -14,25 +14,17 @@ const STAT_KEYS = [
 function AnimatedStat({ target, label }) {
   const [value, setValue] = useState(0);
   const elRef = useRef(null);
-  const animatedRef = useRef(false);
+  const [hasIntersected, setHasIntersected] = useState(false);
 
+  // Step 1: just detect visibility, once. This no longer gates the
+  // animation itself, so it can't get "used up" before real data arrives.
   useEffect(() => {
-    if (!elRef.current) return;
+    if (!elRef.current || hasIntersected) return;
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !animatedRef.current) {
-            animatedRef.current = true;
-            const duration = 1600;
-            const start = performance.now();
-            const tick = (now) => {
-              const progress = Math.min((now - start) / duration, 1);
-              const eased = 1 - Math.pow(1 - progress, 3);
-              setValue(Math.floor(target * eased));
-              if (progress < 1) requestAnimationFrame(tick);
-              else setValue(target);
-            };
-            requestAnimationFrame(tick);
+          if (entry.isIntersecting) {
+            setHasIntersected(true);
             io.unobserve(entry.target);
           }
         });
@@ -41,7 +33,28 @@ function AnimatedStat({ target, label }) {
     );
     io.observe(elRef.current);
     return () => io.disconnect();
-  }, [target]);
+  }, [hasIntersected]);
+
+  // Step 2: (re-)run the count-up animation any time the target changes,
+  // as long as the element has been seen - so it still animates to the
+  // correct number if the data arrives after the section scrolled into
+  // view, and updates again on later refreshes.
+  useEffect(() => {
+    if (!hasIntersected) return;
+    let raf;
+    const duration = 1200;
+    const start = performance.now();
+    const from = 0;
+    const tick = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.floor(from + (target - from) * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+      else setValue(target);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [target, hasIntersected]);
 
   return (
     <div className="stat-item">
