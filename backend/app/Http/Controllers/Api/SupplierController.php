@@ -17,7 +17,7 @@ class SupplierController extends Controller
     {
         $data = $request->validate([
             'company_name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:255',
         ]);
@@ -36,7 +36,7 @@ class SupplierController extends Controller
         if (!$supplier) return response()->json(['success' => false, 'message' => 'Supplier not found.'], 404);
         $data = $request->validate([
             'company_name' => 'sometimes|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:255',
         ]);

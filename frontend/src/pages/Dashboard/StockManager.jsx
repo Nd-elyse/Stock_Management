@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, printElementById, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, printElementById, StatCard, WelcomeBanner, TruncatedText, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
 import { useAuth, useToast } from '../../context';
 import { inventoryApi, notificationsApi, authApi } from '../../api';
 
@@ -82,9 +83,16 @@ export default function StockManager() {
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.IsRead && !n.is_read).length, [notifications]);
   const lowStockCount = useMemo(() => spareParts.filter((p) => Number(p.Quantity) <= Number(p.ReorderLevel || 0)).length, [spareParts]);
+  const isThisMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return !Number.isNaN(d.getTime()) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  };
   const categoryName = (id) => categories.find((c) => c.CategoryID === id)?.CategoryName || id;
   const supplierName = (id) => suppliers.find((s) => s.SupplierID === id)?.CompanyName || id;
   const partName = (id) => spareParts.find((p) => p.SparePartID === id)?.PartName || id;
+  const partStock = (id) => spareParts.find((p) => p.SparePartID === id)?.Quantity ?? '-';
 
   const withCrud = (label, api, form, setForm, empty, modalId, idKey) => ({
     openAdd: () => { setForm(empty); showBsModal(modalId); },
@@ -136,9 +144,22 @@ export default function StockManager() {
     showToast(res.success ? 'Request rejected.' : res.message || 'Could not reject request.', res.success ? 'success' : 'danger');
     if (res.success) loadAll();
   };
+  const deleteRequest = async (r) => {
+    if (!(await ConfirmDelete('request', r.SparePartName || partName(r.SparePartID)))) return;
+    const res = await inventoryApi.removeSparePartRequest(r.RequestID);
+    showToast(res.success ? 'Request deleted.' : res.message || 'Could not delete request.', res.success ? 'success' : 'danger');
+    if (res.success) loadAll();
+  };
+  const deleteTransaction = async (t) => {
+    if (!(await ConfirmDelete('stock transaction record', t.PartName || partName(t.SparePartID)))) return;
+    const res = await inventoryApi.removeStockTransaction(t.TransactionID);
+    showToast(res.success ? 'Transaction record deleted.' : res.message || 'Could not delete transaction.', res.success ? 'success' : 'danger');
+    if (res.success) loadAll();
+  };
 
   const saveProfile = async (e) => {
     e.preventDefault();
+    if (phoneError(profileForm.phone)) { showToast(phoneError(profileForm.phone), 'danger'); return; }
     const res = await authApi.updateProfile(profileForm);
     showToast(res.success ? 'Profile updated.' : res.message || 'Could not update profile.', res.success ? 'success' : 'danger');
   };
@@ -182,17 +203,27 @@ export default function StockManager() {
       ) : (
         <>
           {activeTab === 'dashboard' && (
-            <div className="row g-3">
-              <StatCard icon="bi-boxes" color="blue" value={spareParts.length} label="Spare Parts" />
-              <StatCard icon="bi-exclamation-triangle" color="orange" value={lowStockCount} label="Low Stock" />
-              <StatCard icon="bi-truck" color="green" value={suppliers.length} label="Suppliers" />
-              <StatCard icon="bi-box-seam" color="purple" value={requests.filter((r) => r.Status === 'Pending' || !r.Status).length} label="Pending Requests" />
-            </div>
+            <>
+              <WelcomeBanner name={user?.name} subtitle="Here's a live view of your inventory today." />
+              <div className="row g-3">
+                <StatCard icon="bi-boxes" color="blue" value={spareParts.length} label="Spare Parts" />
+                <StatCard icon="bi-exclamation-triangle" color="orange" value={lowStockCount} label="Low Stock" />
+                <StatCard icon="bi-truck" color="green" value={suppliers.length} label="Suppliers" />
+                <StatCard icon="bi-box-seam" color="purple" value={requests.filter((r) => r.Status === 'Pending' || !r.Status).length} label="Pending Requests" />
+              </div>
+            </>
           )}
 
           {activeTab === 'spareparts' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-boxes" color="blue" value={spareParts.length} label="Total Parts" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-exclamation-triangle-fill" color="orange" value={lowStockCount} label="Low Stock" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-x-octagon-fill" color="red" value={spareParts.filter((p) => Number(p.Quantity) === 0).length} label="Out of Stock" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-cash-stack" color="green" value={`${spareParts.reduce((sum, p) => sum + Number(p.Quantity || 0) * Number(p.UnitPrice || 0), 0).toLocaleString('en-US')} RWF`} label="Inventory Value" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Spare Parts Inventory" icon="bi-boxes" addLabel="Add Spare Part" onAdd={partCrud.openAdd} searchPlaceholder="Search spare parts..."
                 columns={[
                   { key: 'PartName', label: 'Part Name' },
@@ -207,8 +238,8 @@ export default function StockManager() {
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewPart.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => partCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => partCrud.remove(r)}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => partCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => partCrud.remove(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -255,14 +286,15 @@ export default function StockManager() {
           {activeTab === 'categories' && (
             <>
               <DataTable
+                onRefresh={loadAll}
                 title="Categories" icon="bi-tags-fill" addLabel="Add Category" onAdd={categoryCrud.openAdd} searchPlaceholder="Search categories..."
                 columns={[{ key: 'CategoryName', label: 'Category Name' }, { key: 'Description', label: 'Description' }]}
                 rows={categories}
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewCategory.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => categoryCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => categoryCrud.remove(r)}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => categoryCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => categoryCrud.remove(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -286,15 +318,21 @@ export default function StockManager() {
 
           {activeTab === 'suppliers' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-truck" color="blue" value={suppliers.length} label="Total Suppliers" />
+                <StatCard icon="bi-cart-check-fill" color="green" value={suppliers.filter((s) => spareParts.some((p) => p.SupplierID === s.SupplierID)).length} label="Supplying Parts" />
+                <StatCard icon="bi-box-seam-fill" color="purple" value={spareParts.length ? Math.round(spareParts.length / Math.max(suppliers.length, 1)) : 0} label="Avg. Parts / Supplier" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Suppliers" icon="bi-truck" addLabel="Add Supplier" onAdd={supplierCrud.openAdd} searchPlaceholder="Search suppliers..."
                 columns={[{ key: 'CompanyName', label: 'Supplier' }, { key: 'Phone', label: 'Phone' }, { key: 'Email', label: 'Email' }, { key: 'Address', label: 'Address' }]}
                 rows={suppliers}
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewSupplier.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => supplierCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => supplierCrud.remove(r)}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => supplierCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => supplierCrud.remove(r)}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -308,10 +346,18 @@ export default function StockManager() {
                 ]}
               />
               <Modal id="supplierModal" title={supplierForm.SupplierID ? 'Edit Supplier' : 'Add Supplier'} icon="bi-truck">
-                <form onSubmit={supplierCrud.save}>
+                <form onSubmit={(e) => { e.preventDefault(); if (phoneError(supplierForm.Phone)) { showToast(phoneError(supplierForm.Phone), 'danger'); return; } supplierCrud.save(e); }}>
                   <div className="row g-3">
                     <div className="col-md-6"><label className="form-label-custom">Supplier Name</label><input className="form-control form-control-custom" required value={supplierForm.CompanyName ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, CompanyName: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={supplierForm.Phone ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Phone</label>
+                      <input
+                        className={`form-control form-control-custom${supplierForm.Phone && phoneError(supplierForm.Phone) ? ' is-invalid' : ''}`}
+                        required inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                        value={supplierForm.Phone ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: digitsOnly(e.target.value) }))}
+                      />
+                      {supplierForm.Phone && phoneError(supplierForm.Phone) && <div className="invalid-feedback d-block">{phoneError(supplierForm.Phone)}</div>}
+                    </div>
                     <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={supplierForm.Email ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Email: e.target.value }))} /></div>
                     <div className="col-12"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={supplierForm.Address ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Address: e.target.value }))} /></div>
                   </div>
@@ -323,7 +369,14 @@ export default function StockManager() {
 
           {activeTab === 'purchases' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-cart-check-fill" color="blue" value={purchases.length} label="Total Purchases" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-calendar-check" color="purple" value={purchases.filter((p) => isThisMonth(p.PurchaseDate)).length} label="This Month" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-cash-stack" color="green" value={`${purchases.reduce((sum, p) => sum + Number(p.TotalAmount || 0), 0).toLocaleString('en-US')} RWF`} label="Total Spent" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-box-seam" color="orange" value={purchases.reduce((sum, p) => sum + Number(p.Quantity || 0), 0)} label="Units Purchased" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Purchase Orders" icon="bi-cart-check-fill" addLabel="Record Purchase" onAdd={openPurchase} searchPlaceholder="Search purchases..."
                 columns={[
                   { key: 'SparePartID', label: 'Part', render: (r) => partName(r.SparePartID) },
@@ -340,7 +393,7 @@ export default function StockManager() {
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewPurchase.open(r)}><i className="bi bi-eye"></i></button>
                     <button className="btn-action view" title="Print" onClick={() => { viewPurchase.open(r); setTimeout(() => printElementById('viewPurchaseModal-body', 'Purchase Details'), 300); }}><i className="bi bi-printer"></i></button>
-                    <button className="btn-icon danger" onClick={async () => {
+                    <button className="btn-icon danger" title="Delete" onClick={async () => {
                       if (!(await ConfirmDelete('purchase record', `Purchase #${r.PurchaseID}`))) return;
                       const res = await inventoryApi.removePurchase(r.PurchaseID);
                       if (res.success) { showToast('Purchase removed.', 'success'); loadAll(); }
@@ -381,7 +434,7 @@ export default function StockManager() {
                     </div>
                     <div className="col-md-6"><label className="form-label-custom">Quantity</label><input type="number" min="1" className="form-control form-control-custom" required value={purchaseForm.Quantity ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, Quantity: e.target.value }))} /></div>
                     <div className="col-md-6"><label className="form-label-custom">Unit Cost (RWF)</label><input type="number" className="form-control form-control-custom" required value={purchaseForm.UnitPrice ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, UnitPrice: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Purchase Date</label><input type="date" className="form-control form-control-custom" required value={purchaseForm.PurchaseDate ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, PurchaseDate: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Purchase Date</label><input type="date" className="form-control form-control-custom" required max={todayStr()} value={purchaseForm.PurchaseDate ?? ''} onChange={(e) => setPurchaseForm((f) => ({ ...f, PurchaseDate: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Purchase</button>
                 </form>
@@ -391,13 +444,24 @@ export default function StockManager() {
 
           {activeTab === 'requests' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-box-seam" color="blue" value={requests.length} label="Total Requests" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-hourglass-split" color="orange" value={requests.filter((r) => !r.Status || r.Status === 'Pending').length} label="Pending" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={requests.filter((r) => r.Status === 'Approved' || r.Status === 'Fulfilled').length} label="Approved" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-x-circle-fill" color="red" value={requests.filter((r) => r.Status === 'Rejected').length} label="Rejected" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
               <DataTable
-                title="Spare Part Requests from Mechanics" icon="bi-box-seam" searchPlaceholder="Search requests..."
+                onRefresh={loadAll}
+                title="Mechanic Part Requests" icon="bi-box-seam" searchPlaceholder="Search requests..."
                 columns={[
-                  { key: 'SparePartID', label: 'Part', render: (r) => partName(r.SparePartID) },
-                  { key: 'JobID', label: 'Job #' },
+                  { key: 'MechanicName', label: 'Mechanic', render: (r) => r.MechanicName || '-' },
+                  { key: 'JobID', label: 'Job', render: (r) => r.JobID || '-' },
+                  { key: 'SparePartID', label: 'Part', render: (r) => r.SparePartName || partName(r.SparePartID) },
                   { key: 'QuantityRequested', label: 'Qty' },
-                  { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status || 'Pending'} /> },
+                  { key: 'SparePartID_stock', label: 'Stock', render: (r) => partStock(r.SparePartID) },
+                  { key: 'Reason', label: 'Reason', render: (r) => <TruncatedText text={r.Reason} limit={28} /> },
+                  { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status || 'Pending'} okValues={['Fulfilled', 'Approved']} lowValues={['Rejected']} /> },
+                  { key: 'DecidedAt', label: 'Date', render: (r) => fmtDateTime(r.DecidedAt || r.RequestedAt) || '-' },
                 ]}
                 rows={requests}
                 renderActions={(r) => (
@@ -408,6 +472,9 @@ export default function StockManager() {
                         <button className="btn-icon" title="Approve" onClick={() => approveRequest(r)}><i className="bi bi-check-lg"></i></button>
                         <button className="btn-icon danger" title="Reject" onClick={() => rejectRequest(r)}><i className="bi bi-x-lg"></i></button>
                       </>
+                    )}
+                    {r.Status && r.Status !== 'Pending' && (
+                      <button className="btn-icon danger" title="Delete" onClick={() => deleteRequest(r)}><i className="bi bi-trash"></i></button>
                     )}
                   </>
                 )}
@@ -431,16 +498,30 @@ export default function StockManager() {
           {activeTab === 'transactions' && (
             <>
               <DataTable
-                title="Stock Movement Log" icon="bi-journal-text" searchPlaceholder="Search stock log..."
+                onRefresh={loadAll}
+                title="Stock Movement History" icon="bi-clock-history" searchPlaceholder="Search stock log..."
                 columns={[
+                  { key: 'TransactionDate', label: 'Date', render: (r) => r.TransactionDate || fmtDateTime(r.CreatedAt) },
                   { key: 'SparePartID', label: 'Part', render: (r) => r.PartName || partName(r.SparePartID) },
-                  { key: 'TransactionType', label: 'Type' },
-                  { key: 'Quantity', label: 'Quantity' },
-                  { key: 'CreatedAt', label: 'Date', render: (r) => fmtDateTime(r.TransactionDate || r.CreatedAt) },
+                  { key: 'TransactionType', label: 'Type', render: (r) => <StatusBadge status={r.TransactionType} okValues={['Purchase', 'Restock']} lowValues={[]} /> },
+                  {
+                    key: 'Moved', label: 'Moved',
+                    render: (r) => {
+                      const moved = (r.AfterQty != null && r.BeforeQty != null) ? Number(r.AfterQty) - Number(r.BeforeQty) : null;
+                      if (moved == null) return '-';
+                      return <span style={{ fontWeight: 700, color: moved < 0 ? 'var(--danger, #dc2626)' : '#16a34a' }}>{moved > 0 ? `+${moved}` : moved}</span>;
+                    },
+                  },
+                  { key: 'BeforeQty', label: 'Before', render: (r) => r.BeforeQty ?? '-' },
+                  { key: 'AfterQty', label: 'After', render: (r) => r.AfterQty ?? '-' },
+                  { key: 'UserName', label: 'User', render: (r) => <span style={{ color: 'var(--primary-blue)', fontWeight: 600 }}>{r.UserName || 'System'}</span> },
                 ]}
                 rows={transactions}
                 renderActions={(r) => (
-                  <button className="btn-action view" title="View" onClick={() => viewTransaction.open(r)}><i className="bi bi-eye"></i></button>
+                  <>
+                    <button className="btn-action view" title="View" onClick={() => viewTransaction.open(r)}><i className="bi bi-eye"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => deleteTransaction(r)}><i className="bi bi-trash"></i></button>
+                  </>
                 )}
               />
               <DetailsModal
@@ -507,7 +588,12 @@ export default function StockManager() {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Phone</label>
-                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
+                  <input
+                    type="tel" className={`form-control form-control-custom${profileForm.phone && phoneError(profileForm.phone) ? ' is-invalid' : ''}`}
+                    inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                    value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: digitsOnly(e.target.value) }))}
+                  />
+                  {profileForm.phone && phoneError(profileForm.phone) && <div className="invalid-feedback d-block">{phoneError(profileForm.phone)}</div>}
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">

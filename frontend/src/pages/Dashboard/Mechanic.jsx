@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, WelcomeBanner, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
 import { useAuth, useToast } from '../../context';
 import { jobsApi, customersApi, inventoryApi, notificationsApi, authApi } from '../../api';
 
@@ -52,6 +53,8 @@ export default function Mechanic() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => { if (refreshing) return; setRefreshing(true); try { await loadAll(); } finally { setRefreshing(false); } };
   const viewNotification = useViewModal('viewNotificationModal');
   const viewJob = useViewModal('viewJobModal');
 
@@ -152,6 +155,7 @@ export default function Mechanic() {
       showToast('New passwords do not match.', 'danger');
       return;
     }
+    if (phoneError(profileForm.phone)) { showToast(phoneError(profileForm.phone), 'danger'); return; }
     const res = await authApi.updateProfile(profileForm);
     showToast(res.success ? (res.message || 'Profile updated successfully.') : (res.message || 'Could not update profile.'), res.success ? 'success' : 'danger');
     if (res.success) hideBsModal('profileModal');
@@ -195,6 +199,7 @@ export default function Mechanic() {
         <>
           {activeTab === 'dashboard' && (
             <>
+              <WelcomeBanner name={user?.name} subtitle="Here's what's on your bench today." />
               <div className="row g-3">
                 <StatCard icon="bi-clipboard-check-fill" color="blue" value={activeJobs.length} label="Active Jobs" />
                 <StatCard icon="bi-hourglass-split" color="amber" value={awaitingPartsJobs.length} label="Await. Parts" />
@@ -227,9 +232,19 @@ export default function Mechanic() {
           )}
 
           {activeTab === 'assigned' && (
-            <div className="table-card">
+            <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-clipboard-check-fill" color="blue" value={myJobs.length} label="Total Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-lightning-charge-fill" color="orange" value={activeJobs.length} label="Active" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-hourglass-split" color="amber" value={awaitingPartsJobs.length} label="Awaiting Parts" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={completedJobs.length} label="Completed" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
+              <div className="table-card">
               <div className="table-header">
                 <h6><i className="bi bi-clipboard-check-fill" style={{ color: 'var(--primary-blue)' }}></i> My Jobs</h6>
+                <button type="button" className="btn-blue btn-sm btn-refresh" onClick={handleRefresh} disabled={refreshing} title="Refresh data">
+                  <i className={`bi bi-arrow-clockwise${refreshing ? ' spin' : ''}`}></i> Refresh
+                </button>
               </div>
               <div className="table-responsive">
                 <table className="table table-custom">
@@ -257,7 +272,8 @@ export default function Mechanic() {
                   </tbody>
                 </table>
               </div>
-            </div>
+              </div>
+            </>
           )}
           <DetailsModal
             id="viewJobModal" title="Job Details" icon="bi-clipboard-check-fill"
@@ -289,6 +305,12 @@ export default function Mechanic() {
 
           {activeTab === 'parts' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-box-seam" color="blue" value={requests.length} label="Total Requests" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-hourglass-split" color="orange" value={requests.filter((r) => !r.Status || r.Status === 'Pending').length} label="Pending" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={requests.filter((r) => r.Status === 'Fulfilled').length} label="Fulfilled" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-x-circle-fill" color="red" value={requests.filter((r) => r.Status === 'Rejected').length} label="Rejected" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
               <div className="card-custom p-4" style={{ maxWidth: 700, margin: '0 auto' }}>
                 <h6 style={{ fontWeight: 700 }}><i className="bi bi-boxes" style={{ color: 'var(--primary-blue)' }}></i> Request Spare Parts</h6>
                 <form onSubmit={saveRequest}>
@@ -325,6 +347,9 @@ export default function Mechanic() {
               <div className="table-card mt-4">
                 <div className="table-header">
                   <h6><i className="bi bi-list-check" style={{ color: 'var(--primary-blue)' }}></i> My Requests</h6>
+                  <button type="button" className="btn-blue btn-sm btn-refresh" onClick={handleRefresh} disabled={refreshing} title="Refresh data">
+                    <i className={`bi bi-arrow-clockwise${refreshing ? ' spin' : ''}`}></i> Refresh
+                  </button>
                 </div>
                 <div className="table-responsive">
                   <table className="table table-custom">
@@ -338,7 +363,7 @@ export default function Mechanic() {
                           <td>{r.SparePartName || spareParts.find((p) => p.SparePartID === r.SparePartID)?.PartName || 'N/A'}</td>
                           <td>{r.QuantityRequested}</td>
                           <td>{r.Reason || '-'}</td>
-                          <td><span className={`badge-status ${r.Status === 'Fulfilled' ? 'badge-ok' : r.Status === 'Rejected' ? 'badge-danger' : 'badge-low'}`}>{r.Status || 'Pending'}</span></td>
+                          <td><StatusBadge status={r.Status || 'Pending'} okValues={['Fulfilled']} lowValues={['Rejected']} /></td>
                           <td>{r.RequestedAt ? new Date(r.RequestedAt).toLocaleDateString() : '-'}</td>
                           <td>{r.Status === 'Pending' ? <button className="btn-action delete" onClick={() => cancelRequest(r)}><i className="bi bi-trash"></i></button> : '-'}</td>
                         </tr>
@@ -351,9 +376,19 @@ export default function Mechanic() {
           )}
 
           {activeTab === 'history' && (
-            <div className="table-card">
+            <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-clock-history" color="blue" value={jobHistory.length} label="Total History" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-truck" color="green" value={jobHistory.filter((j) => j.Status === 'Delivered').length} label="Delivered" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="purple" value={jobHistory.filter((j) => j.Status === 'Ready' || j.Status === 'Completed').length} label="Ready / Completed" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-x-circle-fill" color="red" value={jobHistory.filter((j) => j.Status === 'Cancelled').length} label="Cancelled" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
+              <div className="table-card">
               <div className="table-header">
                 <h6><i className="bi bi-clock-history" style={{ color: 'var(--primary-blue)' }}></i> Job History</h6>
+                <button type="button" className="btn-blue btn-sm btn-refresh" onClick={handleRefresh} disabled={refreshing} title="Refresh data">
+                  <i className={`bi bi-arrow-clockwise${refreshing ? ' spin' : ''}`}></i> Refresh
+                </button>
               </div>
               <div className="table-responsive">
                 <table className="table table-custom">
@@ -377,11 +412,17 @@ export default function Mechanic() {
                   </tbody>
                 </table>
               </div>
-            </div>
+              </div>
+            </>
           )}
 
           {activeTab === 'notifications' && (
             <div className="card-custom p-4">
+              <div className="row g-3 mb-4">
+                <StatCard icon="bi-bell-fill" color="blue" value={notifications.length} label="Total" colClass="col-4" />
+                <StatCard icon="bi-envelope-exclamation-fill" color="red" value={notifications.filter((n) => !(n.IsRead || n.is_read)).length} label="Unread" colClass="col-4" />
+                <StatCard icon="bi-envelope-open-fill" color="green" value={notifications.filter((n) => n.IsRead || n.is_read).length} label="Read" colClass="col-4" />
+              </div>
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h6 style={{ fontWeight: 700 }}><i className="bi bi-bell-fill" style={{ color: 'var(--primary-blue)' }}></i> All Notifications</h6>
                 <button className="btn-outline-blue btn-sm" onClick={markAllRead}><i className="bi bi-check-all"></i> Mark All Read</button>
@@ -427,7 +468,12 @@ export default function Mechanic() {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Phone</label>
-                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
+                  <input
+                    type="tel" className={`form-control form-control-custom${profileForm.phone && phoneError(profileForm.phone) ? ' is-invalid' : ''}`}
+                    inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                    value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: digitsOnly(e.target.value) }))}
+                  />
+                  {profileForm.phone && phoneError(profileForm.phone) && <div className="invalid-feedback d-block">{phoneError(profileForm.phone)}</div>}
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">

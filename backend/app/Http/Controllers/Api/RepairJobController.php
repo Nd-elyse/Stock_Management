@@ -50,7 +50,8 @@ class RepairJobController extends Controller
         $data = $request->validate([
             'vehicle_id' => 'required|integer|exists:vehicles,VehicleID',
             'mechanic_id' => 'nullable|integer|exists:mechanics,MechanicID',
-            'start_date' => 'required|date',
+            'description' => 'nullable|string|max:2000',
+            'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
             'status' => 'nullable|string',
         ]);
@@ -58,7 +59,8 @@ class RepairJobController extends Controller
             'VehicleID' => $data['vehicle_id'],
             'MechanicID' => $data['mechanic_id'] ?? null,
             'UserID' => auth()->id(),
-            'StartDate' => $data['start_date'],
+            'Description' => $data['description'] ?? null,
+            'StartDate' => $data['start_date'] ?? now()->toDateString(),
             'EndDate' => $data['end_date'] ?? null,
             'Status' => $data['status'] ?? 'Pending',
         ]);
@@ -76,6 +78,7 @@ class RepairJobController extends Controller
         $data = $request->validate([
             'vehicle_id' => 'sometimes|integer|exists:vehicles,VehicleID',
             'mechanic_id' => 'nullable|integer|exists:mechanics,MechanicID',
+            'description' => 'sometimes|nullable|string|max:2000',
             'start_date' => 'sometimes|date',
             'end_date' => 'nullable|date',
             'status' => 'sometimes|string',
@@ -84,6 +87,7 @@ class RepairJobController extends Controller
         $job->fill(array_filter([
             'VehicleID' => $data['vehicle_id'] ?? null,
             'MechanicID' => array_key_exists('mechanic_id', $data) ? $data['mechanic_id'] : null,
+            'Description' => array_key_exists('description', $data) ? $data['description'] : null,
             'StartDate' => $data['start_date'] ?? null,
             'EndDate' => array_key_exists('end_date', $data) ? $data['end_date'] : null,
             'Status' => $data['status'] ?? null,

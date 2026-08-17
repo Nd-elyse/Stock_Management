@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useReveal, StatusBadge } from '../../components';
 import { trackRepairApi } from '../../api';
 import { downloadRepairInvoice } from '../../utils/invoicePdf';
@@ -143,11 +143,25 @@ function JobCard({ jobData, isLatest }) {
 
 export default function TrackRepair() {
   useReveal();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const preVerifiedResult = location.state?.result || null;
+
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(preVerifiedResult);
+
+  // Clear the router state once consumed so a page refresh (which drops
+  // location.state anyway) or navigating back here later starts fresh
+  // rather than looking like stale state.
+  useEffect(() => {
+    if (preVerifiedResult) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const update = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));

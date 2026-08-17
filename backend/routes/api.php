@@ -137,7 +137,6 @@ Route::middleware('auth.token')->group(function () {
     /* ---------------- Mechanic: spare part requests ---------------- */
     Route::middleware('role:Mechanic')->group(function () {
         Route::post('/spare-part-requests', [SparePartRequestController::class, 'store']);
-        Route::delete('/spare-part-requests/{id}', [SparePartRequestController::class, 'destroy']);
     });
 
     /* ---------------- Admin + Stock Manager: inventory ---------------- */
@@ -145,6 +144,14 @@ Route::middleware('auth.token')->group(function () {
         Route::put('/spare-part-requests/{id}/approve', [SparePartRequestController::class, 'approve']);
         Route::put('/spare-part-requests/{id}/reject', [SparePartRequestController::class, 'reject']);
         Route::delete('/stock-transactions/{id}', [StockTransactionController::class, 'destroy']);
+    });
+
+    /* Delete a spare-part request: the mechanic who raised it (to cancel),
+       or Admin/Stock Manager (to clean up decided requests). One shared
+       route - registering it twice under different role middleware would
+       mean only the first-matched registration is ever actually used. */
+    Route::middleware('role:Mechanic,Admin,Stock Manager')->group(function () {
+        Route::delete('/spare-part-requests/{id}', [SparePartRequestController::class, 'destroy']);
     });
 
     /* ---------------- Stock Manager (+ Admin): inventory writes ---------------- */

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, WelcomeBanner, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
 import { useAuth, useToast } from '../../context';
 import { usersApi, jobsApi, inventoryApi, notificationsApi, contactApi, authApi, customersApi, billingApi } from '../../api';
 
@@ -230,6 +231,7 @@ export default function Admin() {
       showToast('Passwords do not match.', 'danger');
       return;
     }
+    if (phoneError(userForm.Phone)) { showToast(phoneError(userForm.Phone), 'danger'); return; }
     const res = await usersApi.save(userForm);
     if (res.success) {
       showToast(userForm.UserID ? 'User updated.' : 'User created.', 'success');
@@ -250,6 +252,7 @@ export default function Admin() {
   const openEditMechanic = (m) => { setMechanicForm({ ...emptyMechanic, ...m }); showBsModal('mechanicModal'); };
   const saveMechanic = async (e) => {
     e.preventDefault();
+    if (phoneError(mechanicForm.Phone)) { showToast(phoneError(mechanicForm.Phone), 'danger'); return; }
     const res = await jobsApi.saveMechanic(mechanicForm);
     if (res.success) {
       showToast('Mechanic updated.', 'success');
@@ -271,6 +274,7 @@ export default function Admin() {
   const openEditSupplier = (s) => { setSupplierForm({ ...emptySupplier, ...s }); showBsModal('supplierModal'); };
   const saveSupplier = async (e) => {
     e.preventDefault();
+    if (phoneError(supplierForm.Phone)) { showToast(phoneError(supplierForm.Phone), 'danger'); return; }
     const res = await inventoryApi.saveSupplier(supplierForm);
     if (res.success) {
       showToast(supplierForm.SupplierID ? 'Supplier updated.' : 'Supplier added.', 'success');
@@ -368,6 +372,7 @@ export default function Admin() {
   // ---- Profile / Settings ----
   const saveProfile = async (e) => {
     e.preventDefault();
+    if (phoneError(profileForm.phone)) { showToast(phoneError(profileForm.phone), 'danger'); return; }
     const res = await authApi.updateProfile(profileForm);
     showToast(res.success ? 'Profile updated.' : res.message || 'Could not update profile.', res.success ? 'success' : 'danger');
   };
@@ -597,10 +602,7 @@ export default function Admin() {
         <>
           {activeTab === 'dashboard' && (
             <>
-              <div className="card-custom p-4 mb-4">
-                <h5 className="mb-1" style={{ fontWeight: 700 }}>Welcome to the Dashboard</h5>
-                <p className="text-muted mb-0">Overview of your garage management system. All stats are live from the database.</p>
-              </div>
+              <WelcomeBanner name={user?.name} subtitle="Overview of your garage management system. All stats are live from the database." />
               <div className="row g-3">
                 <StatCard icon="bi-people-fill" color="blue" value={users.length} label="Total Users" colClass="col-6 col-sm-6 col-lg-3" />
                 <StatCard icon="bi-wrench" color="green" value={mechanics.length} label="Mechanics" colClass="col-6 col-sm-6 col-lg-3" />
@@ -616,6 +618,11 @@ export default function Admin() {
 
           {activeTab === 'notifications' && (
             <div className="card-custom p-4">
+              <div className="row g-3 mb-4">
+                <StatCard icon="bi-bell-fill" color="blue" value={notifications.length} label="Total" colClass="col-4" />
+                <StatCard icon="bi-envelope-exclamation-fill" color="red" value={notifications.filter((n) => !(n.IsRead || n.is_read)).length} label="Unread" colClass="col-4" />
+                <StatCard icon="bi-envelope-open-fill" color="green" value={notifications.filter((n) => n.IsRead || n.is_read).length} label="Read" colClass="col-4" />
+              </div>
               <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <h6 style={{ fontWeight: 700 }}><i className="bi bi-bell-fill" style={{ color: 'var(--primary-blue)' }}></i> All Notifications</h6>
                 <div className="d-flex gap-2">
@@ -652,6 +659,11 @@ export default function Admin() {
 
           {activeTab === 'messages' && (
             <div className="card-custom p-4">
+              <div className="row g-3 mb-4">
+                <StatCard icon="bi-envelope-fill" color="blue" value={messages.length} label="Total" colClass="col-4" />
+                <StatCard icon="bi-envelope-exclamation-fill" color="red" value={messages.filter((m) => !(m.IsRead || m.is_read)).length} label="Unread" colClass="col-4" />
+                <StatCard icon="bi-envelope-open-fill" color="green" value={messages.filter((m) => m.IsRead || m.is_read).length} label="Read" colClass="col-4" />
+              </div>
               <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <h6 style={{ fontWeight: 700 }}><i className="bi bi-envelope-fill" style={{ color: 'var(--primary-blue)' }}></i> Contact Messages</h6>
                 <button className="btn-outline-blue btn-sm" onClick={markAllMessagesRead}><i className="bi bi-check-all"></i> Mark All Read</button>
@@ -697,6 +709,7 @@ export default function Admin() {
                 <StatCard icon="bi-person-x-fill" color="amber" value={users.filter((u) => u.Status === 'Inactive').length} label="Inactive Accounts" colClass="col-6 col-md-4" />
               </div>
               <DataTable
+                onRefresh={loadAll}
                 title="User Management"
                 icon="bi-people-fill"
                 addLabel="Add User"
@@ -744,6 +757,7 @@ export default function Admin() {
                 <i className="bi bi-info-circle-fill me-1"></i> To add a new mechanic, create a user with the <strong>Mechanic</strong> role in Manage Users.
               </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Mechanics Directory"
                 icon="bi-person-vcard-fill"
                 searchPlaceholder="Search mechanics..."
@@ -783,10 +797,11 @@ export default function Admin() {
             <>
               <div className="row g-3 mb-1">
                 <StatCard icon="bi-truck" color="blue" value={suppliers.length} label="Total Suppliers" colClass="col-6 col-md-4" />
-                <StatCard icon="bi-check-circle-fill" color="green" value={suppliers.length} label="Active" colClass="col-6 col-md-4" />
+                <StatCard icon="bi-cart-check-fill" color="green" value={suppliers.filter((s) => Number(s.PurchaseCount) > 0).length} label="With Purchase History" colClass="col-6 col-md-4" />
                 <StatCard icon="bi-cart-fill" color="amber" value={suppliers.reduce((a, s) => a + (Number(s.PurchaseCount) || 0), 0)} label="Total Purchases" colClass="col-6 col-md-4" />
               </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Supplier Directory"
                 icon="bi-truck"
                 addLabel="Add Supplier"
@@ -828,6 +843,7 @@ export default function Admin() {
                 <StatCard icon="bi-exclamation-triangle-fill" color="red" value={spareParts.filter((p) => Number(p.Quantity) <= Number(p.ReorderLevel)).length} label="Low Stock" colClass="col-6 col-md-6" />
               </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Spare Parts Inventory"
                 icon="bi-boxes"
                 addLabel="Add Spare Part"
@@ -941,7 +957,12 @@ export default function Admin() {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Phone</label>
-                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
+                  <input
+                    type="tel" className={`form-control form-control-custom${profileForm.phone && phoneError(profileForm.phone) ? ' is-invalid' : ''}`}
+                    inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                    value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: digitsOnly(e.target.value) }))}
+                  />
+                  {profileForm.phone && phoneError(profileForm.phone) && <div className="invalid-feedback d-block">{phoneError(profileForm.phone)}</div>}
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">
@@ -980,7 +1001,12 @@ export default function Admin() {
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Phone</label>
-              <input className="form-control form-control-custom" value={userForm.Phone ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Phone: e.target.value }))} />
+              <input
+                className={`form-control form-control-custom${userForm.Phone && phoneError(userForm.Phone) ? ' is-invalid' : ''}`}
+                inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                value={userForm.Phone ?? ''} onChange={(e) => setUserForm((f) => ({ ...f, Phone: digitsOnly(e.target.value) }))}
+              />
+              {userForm.Phone && phoneError(userForm.Phone) && <div className="invalid-feedback d-block">{phoneError(userForm.Phone)}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Email</label>
@@ -1031,7 +1057,12 @@ export default function Admin() {
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Phone</label>
-              <input className="form-control form-control-custom" value={mechanicForm.Phone ?? ''} onChange={(e) => setMechanicForm((f) => ({ ...f, Phone: e.target.value }))} />
+              <input
+                className={`form-control form-control-custom${mechanicForm.Phone && phoneError(mechanicForm.Phone) ? ' is-invalid' : ''}`}
+                inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                value={mechanicForm.Phone ?? ''} onChange={(e) => setMechanicForm((f) => ({ ...f, Phone: digitsOnly(e.target.value) }))}
+              />
+              {mechanicForm.Phone && phoneError(mechanicForm.Phone) && <div className="invalid-feedback d-block">{phoneError(mechanicForm.Phone)}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Specialty</label>
@@ -1056,7 +1087,12 @@ export default function Admin() {
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Phone</label>
-              <input className="form-control form-control-custom" value={supplierForm.Phone ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: e.target.value }))} />
+              <input
+                className={`form-control form-control-custom${supplierForm.Phone && phoneError(supplierForm.Phone) ? ' is-invalid' : ''}`}
+                inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                value={supplierForm.Phone ?? ''} onChange={(e) => setSupplierForm((f) => ({ ...f, Phone: digitsOnly(e.target.value) }))}
+              />
+              {supplierForm.Phone && phoneError(supplierForm.Phone) && <div className="invalid-feedback d-block">{phoneError(supplierForm.Phone)}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label-custom">Email</label>

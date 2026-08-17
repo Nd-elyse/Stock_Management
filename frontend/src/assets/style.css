@@ -653,6 +653,12 @@ button[data-loading="true"]::after {
 .footer-custom .footer-text { color:var(--text-muted); font-size:0.9rem; line-height:1.7; }
 .footer-custom .footer-links a { color:var(--text-muted); text-decoration:none; font-size:0.9rem; transition:var(--transition); display:inline-block; margin-right:1.2rem; }
 .footer-custom .footer-links a:hover { color:var(--primary-blue); transform:translateX(4px); }
+.footer-custom .footer-links .footer-link-btn {
+    background: none; border: none; padding: 0; font-family: inherit; cursor: pointer;
+    color: var(--text-muted); text-decoration: none; font-size: 0.9rem;
+    transition: var(--transition); display: inline-block; margin-right: 1.2rem;
+}
+.footer-custom .footer-links .footer-link-btn:hover { color: var(--primary-blue); transform: translateX(4px); }
 .footer-custom .social-link { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; background:var(--primary-lighter); color:var(--primary-blue); transition:var(--transition); text-decoration:none; margin-right:0.5rem; }
 .footer-custom .social-link:hover { background:var(--primary-blue); color:#fff; transform:translateY(-3px); box-shadow:0 6px 20px var(--primary-glow); }
 .footer-custom .footer-divider { border-color:rgba(74,144,217,0.08); margin:1.5rem 0; }
@@ -2590,6 +2596,11 @@ a { transition: color 0.2s var(--ease-out); }
 
 /* ---------- View Repair Status (full page) ---------- */
 .repair-page { min-height: 50vh; }
+.repair-modal-intro {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    margin-bottom: 1.25rem;
+}
 .repair-lookup-card {
     background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
     box-shadow: var(--shadow-sm); padding: 1.75rem; margin-bottom: 2rem;

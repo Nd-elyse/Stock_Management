@@ -15,7 +15,7 @@ class ContactMessageController extends Controller
             'email' => 'required|email|max:255',
             'subject' => 'nullable|string|max:255',
             'message' => 'required|string',
-            'phone' => 'nullable|string',
+            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
         ]);
         $msg = ContactMessage::create([
             'FullName' => $data['full_name'],

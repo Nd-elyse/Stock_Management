@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { useReveal } from '../../components';
 import { useToast } from '../../context';
 import { contactApi } from '../../api';
+import { phoneError, digitsOnly } from '../../utils/validators';
 
 const NAME_PATTERN = /^[a-zA-Z\s\-']+$/;
-const RWANDA_PHONE_PATTERN = /^(079|078|072|073)\d{7}$/;
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const initialForm = { name: '', email: '', phone: '', subject: 'General Inquiry', message: '' };
@@ -25,8 +25,8 @@ export default function Contact() {
     else if (!NAME_PATTERN.test(form.name)) next.name = 'Name should contain only letters and spaces.';
     if (!form.email.trim()) next.email = 'Email Address is required.';
     else if (!validateEmail(form.email)) next.email = 'Please enter a valid email address.';
-    if (form.phone && !RWANDA_PHONE_PATTERN.test(form.phone)) {
-      next.phone = 'Phone must be exactly 10 digits starting with 079, 078, 072, or 073.';
+    if (form.phone && phoneError(form.phone)) {
+      next.phone = phoneError(form.phone);
     }
     if (!form.message.trim()) next.message = 'Message is required.';
     setErrors(next);
@@ -128,10 +128,11 @@ export default function Contact() {
                       <input
                         type="tel"
                         className={`form-control form-control-custom${errors.phone ? ' is-invalid' : ''}`}
-                        placeholder="0781234567"
+                        placeholder="0711234567"
+                        inputMode="numeric"
                         maxLength={10}
                         value={form.phone}
-                        onChange={update('phone')}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: digitsOnly(e.target.value) }))}
                       />
                       {errors.phone && <div className="invalid-feedback" style={{ display: 'block' }}>{errors.phone}</div>}
                     </div>

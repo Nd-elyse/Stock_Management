@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
-import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, WelcomeBanner, TruncatedText, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
+import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
 import { useAuth, useToast } from '../../context';
 import { customersApi, jobsApi, billingApi, notificationsApi, authApi } from '../../api';
 
@@ -146,8 +147,26 @@ export default function Receptionist() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
+    if (phoneError(profileForm.phone)) { showToast(phoneError(profileForm.phone), 'danger'); return; }
     const res = await authApi.updateProfile(profileForm);
     showToast(res.success ? 'Profile updated.' : res.message || 'Could not update profile.', res.success ? 'success' : 'danger');
+  };
+
+  // ---- Derived, real-data stats for the per-page summary cards ----
+  const NOT_ACTIVE_JOB_STATUSES = ['Delivered', 'Ready', 'Completed', 'Cancelled'];
+  const openJobVehicleIds = useMemo(
+    () => new Set(jobs.filter((j) => !NOT_ACTIVE_JOB_STATUSES.includes(j.Status)).map((j) => j.VehicleID)),
+    [jobs]
+  );
+  const activeCustomerCount = useMemo(
+    () => new Set(vehicles.filter((v) => openJobVehicleIds.has(v.VehicleID)).map((v) => v.CustomerID)).size,
+    [vehicles, openJobVehicleIds]
+  );
+  const isThisMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return !Number.isNaN(d.getTime()) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   };
 
   const pageTitles = {
@@ -189,25 +208,34 @@ export default function Receptionist() {
       ) : (
         <>
           {activeTab === 'dashboard' && (
-            <div className="row g-3">
-              <StatCard icon="bi-people-fill" color="blue" value={customers.length} label="Customers" />
-              <StatCard icon="bi-car-front-fill" color="green" value={vehicles.length} label="Vehicles" />
-              <StatCard icon="bi-wrench-adjustable" color="orange" value={jobs.filter((j) => j.Status !== 'Delivered').length} label="Active Jobs" />
-              <StatCard icon="bi-receipt-cutoff" color="purple" value={invoices.filter((i) => i.Status !== 'Paid').length} label="Unpaid Invoices" />
-            </div>
+            <>
+              <WelcomeBanner name={user?.name} subtitle="Here's what's happening at the front desk today." />
+              <div className="row g-3">
+                <StatCard icon="bi-people-fill" color="blue" value={customers.length} label="Customers" />
+                <StatCard icon="bi-car-front-fill" color="green" value={vehicles.length} label="Vehicles" />
+                <StatCard icon="bi-wrench-adjustable" color="orange" value={jobs.filter((j) => j.Status !== 'Delivered').length} label="Active Jobs" />
+                <StatCard icon="bi-receipt-cutoff" color="purple" value={invoices.filter((i) => i.PaymentStatus !== 'Paid').length} label="Unpaid Invoices" />
+              </div>
+            </>
           )}
 
           {activeTab === 'customers' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-people-fill" color="blue" value={customers.length} label="Total Customers" />
+                <StatCard icon="bi-person-check-fill" color="green" value={activeCustomerCount} label="Active Customers" />
+                <StatCard icon="bi-person-plus-fill" color="purple" value={customers.filter((c) => isThisMonth(c.RegistrationDate)).length} label="New This Month" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Customers" icon="bi-people-fill" addLabel="Add Customer" onAdd={customerCrud.openAdd} searchPlaceholder="Search customers..."
                 columns={[{ key: 'FullName', label: 'Full Name' }, { key: 'Phone', label: 'Phone' }, { key: 'Email', label: 'Email' }, { key: 'Address', label: 'Address' }]}
                 rows={customers}
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewCustomer.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => customerCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => customerCrud.remove(r, 'CustomerID')}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => customerCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => customerCrud.remove(r, 'CustomerID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -223,10 +251,18 @@ export default function Receptionist() {
                 ]}
               />
               <Modal id="customerModal" title={customerForm.CustomerID ? 'Edit Customer' : 'Add Customer'} icon="bi-person-plus">
-                <form onSubmit={customerCrud.save}>
+                <form onSubmit={(e) => { e.preventDefault(); if (phoneError(customerForm.Phone)) { showToast(phoneError(customerForm.Phone), 'danger'); return; } customerCrud.save(e); }}>
                   <div className="row g-3">
                     <div className="col-md-6"><label className="form-label-custom">Full Name</label><input className="form-control form-control-custom" required value={customerForm.FullName ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, FullName: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Phone</label><input className="form-control form-control-custom" required value={customerForm.Phone ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Phone: e.target.value }))} /></div>
+                    <div className="col-md-6">
+                      <label className="form-label-custom">Phone</label>
+                      <input
+                        className={`form-control form-control-custom${customerForm.Phone && phoneError(customerForm.Phone) ? ' is-invalid' : ''}`}
+                        required inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                        value={customerForm.Phone ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Phone: digitsOnly(e.target.value) }))}
+                      />
+                      {customerForm.Phone && phoneError(customerForm.Phone) && <div className="invalid-feedback d-block">{phoneError(customerForm.Phone)}</div>}
+                    </div>
                     <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={customerForm.Email ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Email: e.target.value }))} /></div>
                     <div className="col-md-6"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={customerForm.Address ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Address: e.target.value }))} /></div>
                   </div>
@@ -238,7 +274,13 @@ export default function Receptionist() {
 
           {activeTab === 'vehicles' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-car-front-fill" color="blue" value={vehicles.length} label="Total Vehicles" />
+                <StatCard icon="bi-tools" color="orange" value={openJobVehicleIds.size} label="Currently In Service" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={vehicles.length - openJobVehicleIds.size} label="Not In Service" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Vehicles" icon="bi-car-front-fill" addLabel="Add Vehicle" onAdd={vehicleCrud.openAdd} searchPlaceholder="Search vehicles..."
                 columns={[
                   { key: 'PlateNumber', label: 'Plate Number' }, { key: 'Manufacturer', label: 'Make' }, { key: 'Model', label: 'Model' }, { key: 'Year', label: 'Year' },
@@ -248,8 +290,8 @@ export default function Receptionist() {
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewVehicle.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => vehicleCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => vehicleCrud.remove(r, 'VehicleID')}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => vehicleCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => vehicleCrud.remove(r, 'VehicleID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -305,20 +347,27 @@ export default function Receptionist() {
 
           {activeTab === 'jobs' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-wrench-adjustable" color="blue" value={jobs.length} label="Total Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-lightning-charge-fill" color="orange" value={jobs.filter((j) => ['Diagnosed', 'In Progress', 'Awaiting Parts'].includes(j.Status)).length} label="Active Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={jobs.filter((j) => ['Delivered', 'Ready', 'Completed'].includes(j.Status)).length} label="Completed Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-hourglass-split" color="red" value={jobs.filter((j) => j.Status === 'Pending').length} label="Pending Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Repair Jobs" icon="bi-wrench-adjustable" addLabel="New Job" onAdd={jobCrud.openAdd} searchPlaceholder="Search jobs..."
                 columns={[
                   { key: 'VehicleID', label: 'Vehicle', render: (r) => vehiclePlate(r.VehicleID) },
                   { key: 'MechanicID', label: 'Mechanic', render: (r) => mechanicName(r.MechanicID) },
-                  { key: 'Description', label: 'Description' },
+                  { key: 'Description', label: 'Description', render: (r) => <TruncatedText text={r.Description} limit={36} /> },
                   { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status} /> },
                 ]}
                 rows={jobs}
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewJob.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => jobCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => jobCrud.remove(r, 'JobID')}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => jobCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => jobCrud.remove(r, 'JobID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -368,7 +417,14 @@ export default function Receptionist() {
 
           {activeTab === 'invoices' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-receipt-cutoff" color="blue" value={invoices.length} label="Total Invoices" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={invoices.filter((i) => i.PaymentStatus === 'Paid').length} label="Paid" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-hourglass-split" color="orange" value={invoices.filter((i) => i.PaymentStatus === 'Partial').length} label="Partially Paid" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-exclamation-circle-fill" color="red" value={invoices.filter((i) => i.PaymentStatus === 'Pending').length} label="Pending" colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Invoices" icon="bi-receipt-cutoff" addLabel="New Invoice" onAdd={openAddInvoice} searchPlaceholder="Search invoices..."
                 columns={[
                   { key: 'CustomerName', label: 'Customer' }, { key: 'LabourCharges', label: 'Labour (RWF)' }, { key: 'SparePartsCost', label: 'Spare Parts (RWF)' },
@@ -379,8 +435,8 @@ export default function Receptionist() {
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View / Print" onClick={() => viewInvoice.open(r)}><i className="bi bi-printer"></i></button>
-                    <button className="btn-icon" onClick={() => openEditInvoice(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => invoiceCrud.remove(r, 'InvoiceID')}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => openEditInvoice(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => invoiceCrud.remove(r, 'InvoiceID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -427,7 +483,7 @@ export default function Receptionist() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Invoice Date</label>
-                      <input type="date" className="form-control form-control-custom" required max={new Date().toISOString().slice(0, 10)} value={invoiceForm.InvoiceDate ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, InvoiceDate: e.target.value }))} />
+                      <input type="date" className="form-control form-control-custom" required max={todayStr()} value={invoiceForm.InvoiceDate ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, InvoiceDate: e.target.value }))} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label-custom">Labour Charges (RWF)</label>
@@ -466,7 +522,13 @@ export default function Receptionist() {
 
           {activeTab === 'payments' && (
             <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-cash-coin" color="blue" value={payments.length} label="Total Payments" />
+                <StatCard icon="bi-graph-up-arrow" color="green" value={`${payments.reduce((sum, p) => sum + Number(p.Amount || 0), 0).toLocaleString('en-US')} RWF`} label="Total Collected" />
+                <StatCard icon="bi-calendar-check" color="purple" value={payments.filter((p) => isThisMonth(p.PaymentDate)).length} label="Payments This Month" />
+              </div>
               <DataTable
+                onRefresh={loadAll}
                 title="Payments" icon="bi-cash-coin" addLabel="Record Payment" onAdd={paymentCrud.openAdd} searchPlaceholder="Search payments..."
                 columns={[
                   { key: 'InvoiceID', label: 'Invoice #' }, { key: 'Amount', label: 'Amount Paid' },
@@ -476,8 +538,8 @@ export default function Receptionist() {
                 renderActions={(r) => (
                   <>
                     <button className="btn-action view" title="View" onClick={() => viewPayment.open(r)}><i className="bi bi-eye"></i></button>
-                    <button className="btn-icon" onClick={() => paymentCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
-                    <button className="btn-icon danger" onClick={() => paymentCrud.remove(r, 'PaymentID')}><i className="bi bi-trash"></i></button>
+                    <button className="btn-icon" title="Edit" onClick={() => paymentCrud.openEdit(r)}><i className="bi bi-pencil"></i></button>
+                    <button className="btn-icon danger" title="Delete" onClick={() => paymentCrud.remove(r, 'PaymentID')}><i className="bi bi-trash"></i></button>
                   </>
                 )}
               />
@@ -509,7 +571,7 @@ export default function Receptionist() {
                       </select>
                     </div>
                     <div className="col-md-6"><label className="form-label-custom">Amount Paid (RWF)</label><input type="number" className="form-control form-control-custom" required value={paymentForm.Amount ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, Amount: e.target.value }))} /></div>
-                    <div className="col-md-6"><label className="form-label-custom">Payment Date</label><input type="date" className="form-control form-control-custom" required value={paymentForm.PaymentDate ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, PaymentDate: e.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label-custom">Payment Date</label><input type="date" className="form-control form-control-custom" required max={todayStr()} value={paymentForm.PaymentDate ?? ''} onChange={(e) => setPaymentForm((f) => ({ ...f, PaymentDate: e.target.value }))} /></div>
                   </div>
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Payment</button>
                 </form>
@@ -565,7 +627,12 @@ export default function Receptionist() {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label-custom">Phone</label>
-                  <input type="tel" className="form-control form-control-custom" value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} />
+                  <input
+                    type="tel" className={`form-control form-control-custom${profileForm.phone && phoneError(profileForm.phone) ? ' is-invalid' : ''}`}
+                    inputMode="numeric" maxLength={10} placeholder="07XXXXXXXX"
+                    value={profileForm.phone ?? ''} onChange={(e) => setProfileForm((f) => ({ ...f, phone: digitsOnly(e.target.value) }))}
+                  />
+                  {profileForm.phone && phoneError(profileForm.phone) && <div className="invalid-feedback d-block">{phoneError(profileForm.phone)}</div>}
                 </div>
                 <div className="col-12"><hr /><p className="text-muted small mb-0">Change Password (optional)</p></div>
                 <div className="col-md-6">

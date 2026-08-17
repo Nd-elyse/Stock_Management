@@ -8,7 +8,7 @@ class RepairJob extends Model
     protected $table = 'repairjobs';
     protected $primaryKey = 'JobID';
     public $timestamps = false;
-    protected $fillable = ['VehicleID', 'MechanicID', 'UserID', 'StartDate', 'EndDate', 'Status'];
+    protected $fillable = ['VehicleID', 'MechanicID', 'UserID', 'Description', 'StartDate', 'EndDate', 'Status'];
 
     public function vehicle()
     {

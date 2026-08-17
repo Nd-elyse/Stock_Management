@@ -20,7 +20,7 @@ class UserController extends Controller
         $data = $request->validate([
             'role' => 'required|string|in:Admin,Receptionist,Mechanic,Stock Manager',
             'full_name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
             'email' => 'required|email|unique:users,Email',
             'username' => 'required|string|max:255|unique:users,Username',
             'password' => 'required|string|min:6',
@@ -69,7 +69,7 @@ class UserController extends Controller
         $data = $request->validate([
             'role' => 'sometimes|string|in:Admin,Receptionist,Mechanic,Stock Manager',
             'full_name' => 'sometimes|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
             'email' => 'sometimes|email|unique:users,Email,' . $id . ',UserID',
             'username' => 'sometimes|string|max:255|unique:users,Username,' . $id . ',UserID',
             'password' => 'nullable|string|min:6',

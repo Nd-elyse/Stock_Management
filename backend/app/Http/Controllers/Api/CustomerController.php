@@ -21,7 +21,7 @@ class CustomerController extends Controller
     {
         $data = $request->validate([
             'full_name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => ['required', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:255',
         ]);
@@ -43,7 +43,7 @@ class CustomerController extends Controller
         }
         $data = $request->validate([
             'full_name' => 'sometimes|string|max:255',
-            'phone' => 'sometimes|string|max:20',
+            'phone' => ['sometimes', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:255',
         ]);

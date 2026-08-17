@@ -113,7 +113,7 @@ export function PublicFooter() {
             <div className="footer-links">
               <Link to="/">Home</Link>
               <Link to="/about">About</Link>
-              <Link to="/track-repair">View Repair Status</Link>
+              <button type="button" className="footer-link-btn" onClick={() => showBsModal('viewRepairStatusModal')}>View Repair Status</button>
               <Link to="/contact">Contact</Link>
               <Link to="/login">Login</Link>
             </div>
@@ -143,7 +143,7 @@ export function BackToTop({ show, onClick }) {
   );
 }
 
-export function PublicLayout({ children }) {
+export function PublicLayout({ children, modals }) {
   const { loaderHidden, scrolled, showBackToTop, scrollToTop } = usePublicChrome();
   return (
     <>
@@ -152,6 +152,7 @@ export function PublicLayout({ children }) {
       {children}
       <PublicFooter />
       <BackToTop show={showBackToTop} onClick={scrollToTop} />
+      {modals}
     </>
   );
 }
@@ -269,6 +270,40 @@ export function ConfirmDelete(entityLabel, name) {
 /* ============================================================
    STAT CARD
    ============================================================ */
+/** Personalized greeting shown at the top of every dashboard's Overview tab.
+ *  `name` must come from the authenticated user (never hard-code it). */
+export function WelcomeBanner({ name, subtitle }) {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'there';
+  return (
+    <div className="welcome-banner mb-4">
+      <div className="welcome-banner-icon"><i className="bi bi-hand-thumbs-up-fill"></i></div>
+      <div>
+        <h5>Welcome back, {firstName}!</h5>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Long text in a table cell: shows a short preview, full text on hover
+ *  (native tooltip) and toggles fully inline on click - for touch devices
+ *  where hover doesn't apply. */
+export function TruncatedText({ text, limit = 40 }) {
+  const [expanded, setExpanded] = useState(false);
+  const value = (text ?? '').toString();
+  if (!value.trim()) return <span className="text-muted">-</span>;
+  if (value.length <= limit) return <span>{value}</span>;
+  return (
+    <span
+      className="truncated-text"
+      title={!expanded ? value : undefined}
+      onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+    >
+      {expanded ? value : `${value.slice(0, limit)}…`}
+    </span>
+  );
+}
+
 export function StatCard({ icon, color = 'blue', value, label, colClass = 'col-6 col-sm-6 col-lg-3' }) {
   return (
     <div className={colClass}>
@@ -287,8 +322,9 @@ export function StatCard({ icon, color = 'blue', value, label, colClass = 'col-6
    GENERIC DATA TABLE
    columns: [{ key, label, render?(row) }]
    ============================================================ */
-export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLabel, onAdd, renderActions, emptyText = 'No records found.' }) {
+export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLabel, onAdd, onRefresh, renderActions, emptyText = 'No records found.' }) {
   const [query, setQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const safeRows = rows || [];
 
   const filtered = safeRows.filter((row) => {
@@ -296,6 +332,12 @@ export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLa
     const q = query.toLowerCase();
     return columns.some((c) => String(c.render ? '' : row[c.key] ?? '').toLowerCase().includes(q)) || JSON.stringify(row).toLowerCase().includes(q);
   });
+
+  const handleRefresh = async () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try { await onRefresh(); } finally { setRefreshing(false); }
+  };
 
   return (
     <>
@@ -316,7 +358,14 @@ export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLa
       <div className="table-card">
         <div className="table-header">
           <h6>{icon && <i className={`bi ${icon}`} style={{ color: 'var(--primary-blue)' }}></i>} {title}</h6>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Showing {filtered.length} of {rows.length}</span>
+          <div className="table-header-actions">
+            <span className="table-count">Showing {filtered.length} of {rows.length}</span>
+            {onRefresh && (
+              <button type="button" className="btn-blue btn-sm btn-refresh" onClick={handleRefresh} disabled={refreshing} title="Refresh data">
+                <i className={`bi bi-arrow-clockwise${refreshing ? ' spin' : ''}`}></i> Refresh
+              </button>
+            )}
+          </div>
         </div>
         <div className="table-responsive">
           <table className="table table-custom">

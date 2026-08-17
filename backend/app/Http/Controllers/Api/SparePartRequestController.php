@@ -115,6 +115,12 @@ class SparePartRequestController extends Controller
     {
         $reqRow = SparePartRequest::find($id);
         if (!$reqRow) return response()->json(['success' => false, 'message' => 'Request not found.'], 404);
+
+        $user = auth()->user();
+        if ($user && $user->Role === 'Mechanic' && (int) $reqRow->MechanicID !== (int) $user->MechanicID) {
+            return response()->json(['success' => false, 'message' => 'You can only cancel your own requests.'], 403);
+        }
+
         return $this->safeDelete($reqRow, 'request');
     }
 }
