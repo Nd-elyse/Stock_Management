@@ -2596,6 +2596,33 @@ a { transition: color 0.2s var(--ease-out); }
 
 /* ---------- View Repair Status (full page) ---------- */
 .repair-page { min-height: 50vh; }
+.repair-hero {
+    background: linear-gradient(135deg, #f0f8ff 0%, #e0edf9 60%, #c5dff0 100%);
+    padding: 6.5rem 0 1.75rem;
+    text-align: center;
+}
+.repair-hero-crumb {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 0.6rem;
+}
+.repair-hero-crumb a { color: var(--primary-blue); text-decoration: none; }
+.repair-hero-crumb i { font-size: 0.65rem; margin: 0 0.15rem; vertical-align: middle; }
+.repair-hero h1 {
+    font-weight: 800;
+    font-size: 1.9rem;
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+}
+.repair-hero h1 i { color: var(--primary-blue); font-size: 1.6rem; }
+@media (max-width: 576px) {
+    .repair-hero { padding: 6rem 0 1.5rem; }
+    .repair-hero h1 { font-size: 1.5rem; }
+}
 .repair-modal-intro {
     color: var(--text-muted);
     font-size: 0.92rem;
@@ -2622,6 +2649,11 @@ a { transition: color 0.2s var(--ease-out); }
 }
 @media (max-width: 576px) {
     .repair-final-result, .repair-lookup-card { padding: 1.25rem; border-radius: 14px; }
+}
+.repair-back-btn {
+    margin-bottom: 1.25rem;
+    padding: 0.5rem 1.1rem !important;
+    font-size: 0.85rem !important;
 }
 .repair-result-header {
     display: flex; align-items: flex-start; justify-content: space-between;

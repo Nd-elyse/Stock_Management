@@ -55,6 +55,18 @@ class RepairJobController extends Controller
             'end_date' => 'nullable|date',
             'status' => 'nullable|string',
         ]);
+
+        $openStatuses = ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts'];
+        $existingOpenJob = RepairJob::where('VehicleID', $data['vehicle_id'])
+            ->whereIn('Status', $openStatuses)
+            ->first();
+        if ($existingOpenJob) {
+            return response()->json([
+                'success' => false,
+                'message' => "This vehicle already has an open repair job (#{$existingOpenJob->JobID}, status: {$existingOpenJob->Status}). Complete or cancel it before creating a new one.",
+            ], 422);
+        }
+
         $job = RepairJob::create([
             'VehicleID' => $data['vehicle_id'],
             'MechanicID' => $data['mechanic_id'] ?? null,

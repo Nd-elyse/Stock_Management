@@ -139,7 +139,7 @@ class AuthController extends Controller
             'full_name' => 'required|string|max:255',
             'username' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
+            'phone' => ['nullable', 'string', 'regex:/^(072|073|078|079)\d{7}$/'],
             'current_password' => 'nullable|string',
             'new_password' => 'nullable|string|min:6',
             'confirm_password' => 'nullable|string',

@@ -128,7 +128,7 @@ export default function Contact() {
                       <input
                         type="tel"
                         className={`form-control form-control-custom${errors.phone ? ' is-invalid' : ''}`}
-                        placeholder="0711234567"
+                        placeholder="0781234567"
                         inputMode="numeric"
                         maxLength={10}
                         value={form.phone}

@@ -28,7 +28,7 @@ class MechanicController extends Controller
     {
         $data = $request->validate([
             'full_name' => 'required|string|max:255',
-            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
+            'phone' => ['nullable', 'string', 'regex:/^(072|073|078|079)\d{7}$/'],
             'specialization' => 'nullable|string|max:255',
             'salary' => 'required|numeric|min:0',
         ]);
@@ -49,7 +49,7 @@ class MechanicController extends Controller
         }
         $data = $request->validate([
             'full_name' => 'sometimes|string|max:255',
-            'phone' => ['nullable', 'string', 'regex:/^\d{10}$/', 'not_regex:/^(072|073|078|079)/'],
+            'phone' => ['nullable', 'string', 'regex:/^(072|073|078|079)\d{7}$/'],
             'specialization' => 'nullable|string|max:255',
             'salary' => 'sometimes|numeric|min:0',
         ]);

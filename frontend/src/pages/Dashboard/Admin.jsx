@@ -208,6 +208,19 @@ export default function Admin() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Live Active/Inactive status (set on login/logout) is only accurate as
+  // of the last fetch. Poll it quietly in the background - no loading
+  // spinner, no disruption to whatever the admin is doing - so status
+  // reflects reality without requiring a manual page refresh.
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      const [u, m] = await Promise.all([usersApi.list(), jobsApi.listMechanics()]);
+      if (u.success) setUsers(u.data || []);
+      if (m.success) setMechanics(m.data || []);
+    }, 20000);
+    return () => clearInterval(poll);
+  }, []);
+
   const unreadCount = useMemo(() => notifications.filter((n) => !n.IsRead && !n.is_read).length, [notifications]);
   const unreadMessages = useMemo(() => messages.filter((m) => !m.IsRead && !m.is_read).length, [messages]);
 

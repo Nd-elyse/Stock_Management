@@ -163,6 +163,23 @@ export default function TrackRepair() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // While viewing results, quietly re-check for updates every 20s so a
+  // status change made by staff shows up without the customer reloading.
+  // Uses the verified result's own name/plate (not local form state, which
+  // is still empty when arriving here via the modal's redirect).
+  useEffect(() => {
+    if (!result?.vehicle) return;
+    const name = result.vehicle.owner_name;
+    const plate = result.vehicle.plate_number;
+    if (!name || !plate) return;
+    const poll = setInterval(async () => {
+      const res = await trackRepairApi.lookup(name, plate);
+      if (res.success) setResult(res.data);
+    }, 20000);
+    return () => clearInterval(poll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(result)]);
+
   const update = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     setFieldErrors((fe) => ({ ...fe, [field]: '' }));
@@ -191,23 +208,27 @@ export default function TrackRepair() {
     }
   };
 
+  const handleBack = () => {
+    setResult(null);
+    setForm(initialForm);
+    setFieldErrors({});
+    setApiError('');
+  };
+
   return (
     <>
-      <section className="page-hero">
+      <section className="repair-hero">
         <div className="container">
-          <h1>View Repair <span className="highlight">Status</span></h1>
-          <p>Enter your full name and vehicle plate number exactly as given at drop-off to see live repair progress and invoices.</p>
-          <nav>
-            <ol className="breadcrumb">
-              <li className="breadcrumb-item"><Link to="/">Home</Link></li>
-              <li className="breadcrumb-item active">Repair Status</li>
-            </ol>
+          <nav className="repair-hero-crumb">
+            <Link to="/">Home</Link> <i className="bi bi-chevron-right"></i> <span>Repair Status</span>
           </nav>
+          <h1><i className="bi bi-search"></i> Track Your Repair</h1>
         </div>
       </section>
 
-      <section className="section-pad bg-white repair-page">
+      <section className="section-pad-sm bg-white repair-page">
         <div className="container">
+          {!result && (
           <div className="repair-lookup-card reveal">
             <form onSubmit={handleSubmit} noValidate>
               <div className="row g-3 align-items-start">
@@ -245,6 +266,7 @@ export default function TrackRepair() {
               )}
             </form>
           </div>
+          )}
 
           {submitting && (
             <div className="repair-loading reveal">
@@ -255,6 +277,9 @@ export default function TrackRepair() {
 
           {result && (
             <div className="repair-final-result reveal">
+              <button type="button" className="btn-outline-custom repair-back-btn" onClick={handleBack}>
+                <i className="bi bi-arrow-left"></i> Back to Search
+              </button>
               <div className="repair-result-header">
                 <div>
                   <div className="section-eyebrow"><i className="bi bi-car-front-fill"></i> Vehicle</div>
