@@ -10,6 +10,7 @@ const NAV_SECTIONS = [
     title: 'Main',
     items: [
       { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
+      { key: 'financial', label: 'Financial Overview', icon: 'bi-wallet2' },
       { key: 'notifications', label: 'Notifications', icon: 'bi-bell-fill' },
       { key: 'messages', label: 'Messages', icon: 'bi-envelope-fill' },
     ],
@@ -223,6 +224,31 @@ export default function Admin() {
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.IsRead && !n.is_read).length, [notifications]);
   const unreadMessages = useMemo(() => messages.filter((m) => !m.IsRead && !m.is_read).length, [messages]);
+  const totalInvoiceValue = useMemo(() => invoices.reduce((sum, invoice) => sum + Number(invoice.TotalAmount || 0), 0), [invoices]);
+
+  const financialSummary = useMemo(() => {
+    const totalInvoices = invoices.length;
+    const totalDue = invoices.reduce((sum, invoice) => sum + Number(invoice.TotalAmount || 0), 0);
+    const totalPaid = invoices.reduce((sum, invoice) => sum + Number(invoice.TotalPaid || 0), 0);
+    const totalUnpaid = Math.max(totalDue - totalPaid, 0);
+    const outstandingDebts = invoices
+      .filter((invoice) => Number(invoice.TotalAmount || 0) > Number(invoice.TotalPaid || 0))
+      .reduce((sum, invoice) => sum + (Number(invoice.TotalAmount || 0) - Number(invoice.TotalPaid || 0)), 0);
+    const paymentRate = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
+    const debtStatus = paymentRate >= 80 ? 'Healthy' : paymentRate >= 50 ? 'Watchlist' : 'Critical';
+    const debtStatusClass = paymentRate >= 80 ? 'success' : paymentRate >= 50 ? 'warning' : 'danger';
+
+    return {
+      totalInvoices,
+      totalDue,
+      totalPaid,
+      totalUnpaid,
+      outstandingDebts,
+      paymentRate,
+      debtStatus,
+      debtStatusClass,
+    };
+  }, [invoices]);
 
   // ---- Users CRUD ----
   const openAddUser = () => { setUserForm(emptyUser); showBsModal('userModal'); };
@@ -391,7 +417,7 @@ export default function Admin() {
   };
 
   const pageTitles = {
-    dashboard: 'Dashboard', users: 'Manage Users', mechanics: 'Manage Mechanics', suppliers: 'Manage Suppliers',
+    dashboard: 'Dashboard', financial: 'Financial Overview', users: 'Manage Users', mechanics: 'Manage Mechanics', suppliers: 'Manage Suppliers',
     spareparts: 'Manage Spare Parts', reports: 'Manage Reports', messages: 'Messages', notifications: 'Notifications',
   };
 
@@ -624,7 +650,104 @@ export default function Admin() {
                 <StatCard icon="bi-person-vcard-fill" color="purple" value={customers.length} label="Customers" colClass="col-6 col-sm-6 col-lg-3" />
                 <StatCard icon="bi-truck-front-fill" color="blue" value={vehicles.length} label="Vehicles" colClass="col-6 col-sm-6 col-lg-3" />
                 <StatCard icon="bi-scissors" color="green" value={jobs.length} label="Repair Jobs" colClass="col-6 col-sm-6 col-lg-3" />
-                <StatCard icon="bi-receipt" color="amber" value={invoices.length} label="Invoices" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-receipt" color="amber" value={Number(totalInvoiceValue || 0).toLocaleString('en-US')} label={`${invoices.length} Invoices Total`} colClass="col-6 col-sm-6 col-lg-3" />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'financial' && (
+            <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-receipt-cutoff" color="blue" value={financialSummary.totalInvoices} label="Total Invoices" colClass="col-12 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-cash-coin" color="green" value={fmtMoney(financialSummary.totalPaid)} label="Total Amount Paid" colClass="col-12 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-wallet2" color="amber" value={fmtMoney(financialSummary.totalUnpaid)} label="Total Unpaid Amount" colClass="col-12 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-arrow-down-circle-fill" color="red" value={fmtMoney(financialSummary.outstandingDebts)} label="Outstanding Customer Debts" colClass="col-12 col-sm-6 col-lg-3" />
+              </div>
+
+              <div className="card-custom p-4">
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                  <div>
+                    <h6 className="mb-1" style={{ fontWeight: 700 }}><i className="bi bi-wallet2" style={{ color: 'var(--primary-blue)' }}></i> Financial Overview</h6>
+                    <div className="text-muted small">Live revenue and debt status from the latest invoice totals.</div>
+                  </div>
+                  <span className={`badge bg-${financialSummary.debtStatusClass} rounded-pill`}>{financialSummary.debtStatus}</span>
+                </div>
+
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small mb-1">Amounts Due</div>
+                      <div className="fs-4 fw-bold">{fmtMoney(financialSummary.totalDue)}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small mb-1">Amounts Already Paid</div>
+                      <div className="fs-4 fw-bold text-success">{fmtMoney(financialSummary.totalPaid)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="d-flex justify-content-between small text-muted mb-2">
+                    <span>Payment progress</span>
+                    <span>{financialSummary.paymentRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="progress" style={{ height: 12 }}>
+                    <div
+                      className={`progress-bar bg-${financialSummary.debtStatusClass}`}
+                      role="progressbar"
+                      aria-valuenow={financialSummary.paymentRate}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      style={{ width: `${Math.min(financialSummary.paymentRate, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 text-muted small">
+                  {financialSummary.debtStatus === 'Healthy' && 'Collection is on track and most invoices are being settled on time.'}
+                  {financialSummary.debtStatus === 'Watchlist' && 'Revenue is coming in, but a notable share of invoices still needs follow-up.'}
+                  {financialSummary.debtStatus === 'Critical' && 'Immediate follow-up is needed because outstanding balances are rising.'}
+                </div>
+              </div>
+
+              <div className="table-card mt-4">
+                <div className="table-header">
+                  <h6><i className="bi bi-receipt-cutoff" style={{ color: 'var(--primary-blue)' }}></i> Invoice Debt Summary</h6>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-custom">
+                    <thead>
+                      <tr>
+                        <th>Invoice</th>
+                        <th>Customer</th>
+                        <th>Amount Due</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.length === 0 && (
+                        <tr><td colSpan="6" className="text-center text-muted py-4">No invoices found.</td></tr>
+                      )}
+                      {invoices.map((invoice) => {
+                        const balance = Number(invoice.TotalAmount || 0) - Number(invoice.TotalPaid || 0);
+                        return (
+                          <tr key={invoice.InvoiceID}>
+                            <td>#{invoice.InvoiceID}</td>
+                            <td>{invoice.CustomerName || invoice.CustomerID || '-'}</td>
+                            <td>{fmtMoney(invoice.TotalAmount || 0)}</td>
+                            <td>{fmtMoney(invoice.TotalPaid || 0)}</td>
+                            <td>{fmtMoney(Math.max(balance, 0))}</td>
+                            <td><StatusBadge status={invoice.PaymentStatus || 'Pending'} okValues={['Paid']} lowValues={['Pending', 'Partial']} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}

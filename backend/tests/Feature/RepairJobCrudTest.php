@@ -160,6 +160,38 @@ class RepairJobCrudTest extends TestCase
         $this->assertDatabaseMissing('repairjobs', ['JobID' => $jobId]);
     }
 
+    public function test_create_customer_with_vehicle_in_same_request()
+    {
+        $this->actingAs($this->admin);
+
+        $response = $this->postJson('/api/customers', [
+            'full_name' => 'Jane Driver',
+            'phone' => '0701234567',
+            'email' => 'jane@test.com',
+            'address' => '789 Main Road',
+            'vehicle' => [
+                'plate_number' => 'KBA-225K',
+                'manufacturer' => 'Honda',
+                'model' => 'Civic',
+                'year' => '2022',
+                'chassis_number' => 'CHASSIS-NEW-001',
+                'engine_number' => 'ENGINE-NEW-001',
+                'fuel_type' => 'Petrol',
+                'transmission' => 'Automatic',
+                'mileage' => 15000,
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('data.vehicle.PlateNumber', 'KBA-225K');
+
+        $customerId = $response->json('data.CustomerID');
+
+        $this->assertDatabaseHas('customers', ['FullName' => 'Jane Driver', 'Phone' => '0701234567']);
+        $this->assertDatabaseHas('vehicles', ['CustomerID' => $customerId, 'PlateNumber' => 'KBA-225K']);
+    }
+
     public function test_list_jobs_includes_description()
     {
         RepairJob::create([

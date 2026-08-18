@@ -62,9 +62,7 @@ class AuthController extends Controller
             return response()->json($check, 422);
         }
 
-        $user->Status = 'Active';
-        $user->LastActivity = now();
-        $user->save();
+        $this->syncUserSessionState($user, true);
 
         $token = $this->issueToken($user);
 
@@ -108,6 +106,7 @@ class AuthController extends Controller
         if ($oldTokenId) {
             AuthToken::where('id', $oldTokenId)->delete();
         }
+        $this->syncUserSessionState($user, true);
         $token = $this->issueToken($user);
         return response()->json(['success' => true, 'token' => $token]);
     }
@@ -120,9 +119,7 @@ class AuthController extends Controller
             AuthToken::where('id', $tokenId)->delete();
         }
         if ($user) {
-            $user->Status = 'Inactive';
-            $user->LastActivity = now();
-            $user->save();
+            $this->syncUserSessionState($user, false);
         }
         return response()->json(['success' => true]);
     }
@@ -335,9 +332,17 @@ class AuthController extends Controller
         return ['success' => true];
     }
 
+    private function syncUserSessionState(User $user, bool $online): void
+    {
+        $user->Status = $online ? 'Active' : 'Inactive';
+        $user->LastActivity = now();
+        $user->save();
+    }
+
     private function issueToken(User $user): string
     {
         $plain = Str::random(64);
+        $this->syncUserSessionState($user, true);
         AuthToken::create([
             'UserID' => $user->UserID,
             'TokenHash' => hash('sha256', $plain),

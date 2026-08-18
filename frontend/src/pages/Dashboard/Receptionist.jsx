@@ -16,7 +16,13 @@ function fmtDateTime(v) {
 }
 
 const NAV_SECTIONS = [
-  { title: 'Overview', items: [{ key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' }] },
+  {
+    title: 'Overview',
+    items: [
+      { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
+      { key: 'financial', label: 'Financial Overview', icon: 'bi-wallet2' },
+    ],
+  },
   {
     title: 'Front Desk',
     items: [
@@ -35,7 +41,14 @@ const NAV_SECTIONS = [
   { title: 'Account', items: [{ key: 'notifications', label: 'Notifications', icon: 'bi-bell-fill' }] },
 ];
 
-const emptyCustomer = { CustomerID: null, FullName: '', Phone: '', Email: '', Address: '' };
+const emptyCustomer = {
+  CustomerID: null,
+  FullName: '',
+  Phone: '',
+  Email: '',
+  Address: '',
+  vehicle: { PlateNumber: '', Manufacturer: '', Model: '', Year: '', ChassisNumber: '', EngineNumber: '', FuelType: 'Petrol', Transmission: 'Manual' },
+};
 const emptyVehicle = { VehicleID: null, CustomerID: '', PlateNumber: '', Manufacturer: '', Model: '', Year: '', ChassisNumber: '', EngineNumber: '', FuelType: 'Petrol', Transmission: 'Manual' };
 const emptyJob = { JobID: null, VehicleID: '', MechanicID: '', Description: '', Status: 'Pending' };
 const emptyInvoice = {
@@ -92,6 +105,31 @@ export default function Receptionist() {
   const customerName = (id) => customers.find((c) => c.CustomerID === id)?.FullName || id;
   const vehiclePlate = (id) => vehicles.find((v) => v.VehicleID === id)?.PlateNumber || id;
   const mechanicName = (id) => mechanics.find((m) => m.MechanicID === id)?.FullName || '—';
+  const totalInvoiceValue = useMemo(() => invoices.reduce((sum, invoice) => sum + Number(invoice.TotalAmount || 0), 0), [invoices]);
+
+  const financialSummary = useMemo(() => {
+    const totalInvoices = invoices.length;
+    const totalDue = invoices.reduce((sum, invoice) => sum + Number(invoice.TotalAmount || 0), 0);
+    const totalPaid = invoices.reduce((sum, invoice) => sum + Number(invoice.TotalPaid || 0), 0);
+    const totalUnpaid = Math.max(totalDue - totalPaid, 0);
+    const outstandingDebts = invoices
+      .filter((invoice) => Number(invoice.TotalAmount || 0) > Number(invoice.TotalPaid || 0))
+      .reduce((sum, invoice) => sum + (Number(invoice.TotalAmount || 0) - Number(invoice.TotalPaid || 0)), 0);
+    const paymentRate = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
+    const debtStatus = paymentRate >= 80 ? 'Healthy' : paymentRate >= 50 ? 'Watchlist' : 'Critical';
+    const debtStatusClass = paymentRate >= 80 ? 'success' : paymentRate >= 50 ? 'warning' : 'danger';
+
+    return {
+      totalInvoices,
+      totalDue,
+      totalPaid,
+      totalUnpaid,
+      outstandingDebts,
+      paymentRate,
+      debtStatus,
+      debtStatusClass,
+    };
+  }, [invoices]);
 
   const withCrud = (label, api, form, setForm, empty, modalId, reload) => ({
     openAdd: () => { setForm(empty); showBsModal(modalId); },
@@ -152,6 +190,28 @@ export default function Receptionist() {
     showToast(res.success ? 'Profile updated.' : res.message || 'Could not update profile.', res.success ? 'success' : 'danger');
   };
 
+  const saveCustomerWithVehicle = async (e) => {
+    e.preventDefault();
+    if (phoneError(customerForm.Phone)) { showToast(phoneError(customerForm.Phone), 'danger'); return; }
+
+    const payload = { ...customerForm };
+    const vehiclePayload = payload.vehicle;
+    const hasVehicleData = !!vehiclePayload && Object.values(vehiclePayload).some((value) => value !== '' && value !== null && value !== undefined);
+
+    if (hasVehicleData) payload.vehicle = vehiclePayload;
+    else delete payload.vehicle;
+
+    const res = await customersApi.saveCustomer(payload);
+    if (res.success) {
+      showToast('Customer saved.', 'success');
+      hideBsModal('customerModal');
+      loadAll();
+      setCustomerForm(emptyCustomer);
+    } else {
+      showToast(res.message || 'Could not save customer.', 'danger');
+    }
+  };
+
   // ---- Derived, real-data stats for the per-page summary cards ----
   const NOT_ACTIVE_JOB_STATUSES = ['Delivered', 'Ready', 'Completed', 'Cancelled'];
   const openJobVehicleIds = useMemo(
@@ -170,7 +230,7 @@ export default function Receptionist() {
   };
 
   const pageTitles = {
-    dashboard: 'Dashboard', customers: 'Customers', vehicles: 'Vehicles', jobs: 'Repair Jobs',
+    dashboard: 'Dashboard', financial: 'Financial Overview', customers: 'Customers', vehicles: 'Vehicles', jobs: 'Repair Jobs',
     invoices: 'Invoices', payments: 'Payments', notifications: 'Notifications',
   };
 
@@ -214,7 +274,104 @@ export default function Receptionist() {
                 <StatCard icon="bi-people-fill" color="blue" value={customers.length} label="Customers" />
                 <StatCard icon="bi-car-front-fill" color="green" value={vehicles.length} label="Vehicles" />
                 <StatCard icon="bi-wrench-adjustable" color="orange" value={jobs.filter((j) => j.Status !== 'Delivered').length} label="Active Jobs" />
-                <StatCard icon="bi-receipt-cutoff" color="purple" value={invoices.filter((i) => i.PaymentStatus !== 'Paid').length} label="Unpaid Invoices" />
+                <StatCard icon="bi-receipt-cutoff" color="purple" value={Number(totalInvoiceValue || 0).toLocaleString('en-US')} label={`${invoices.length} Invoices Total`} />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'financial' && (
+            <>
+              <div className="row g-3 mb-3">
+                <StatCard icon="bi-receipt-cutoff" color="blue" value={financialSummary.totalInvoices} label="Total Invoices" colClass="col-12 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-cash-coin" color="green" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(financialSummary.totalPaid)} label="Total Amount Paid" colClass="col-12 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-wallet2" color="amber" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(financialSummary.totalUnpaid)} label="Total Unpaid Amount" colClass="col-12 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-arrow-down-circle-fill" color="red" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(financialSummary.outstandingDebts)} label="Outstanding Customer Debts" colClass="col-12 col-sm-6 col-lg-3" />
+              </div>
+
+              <div className="card-custom p-4">
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                  <div>
+                    <h6 className="mb-1" style={{ fontWeight: 700 }}><i className="bi bi-wallet2" style={{ color: 'var(--primary-blue)' }}></i> Financial Overview</h6>
+                    <div className="text-muted small">Live revenue and debt status from the latest invoice totals.</div>
+                  </div>
+                  <span className={`badge bg-${financialSummary.debtStatusClass} rounded-pill`}>{financialSummary.debtStatus}</span>
+                </div>
+
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small mb-1">Amounts Due</div>
+                      <div className="fs-4 fw-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(financialSummary.totalDue)}</div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small mb-1">Amounts Already Paid</div>
+                      <div className="fs-4 fw-bold text-success">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(financialSummary.totalPaid)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="d-flex justify-content-between small text-muted mb-2">
+                    <span>Payment progress</span>
+                    <span>{financialSummary.paymentRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="progress" style={{ height: 12 }}>
+                    <div
+                      className={`progress-bar bg-${financialSummary.debtStatusClass}`}
+                      role="progressbar"
+                      aria-valuenow={financialSummary.paymentRate}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      style={{ width: `${Math.min(financialSummary.paymentRate, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 text-muted small">
+                  {financialSummary.debtStatus === 'Healthy' && 'Collection is on track and most invoices are being settled on time.'}
+                  {financialSummary.debtStatus === 'Watchlist' && 'Revenue is coming in, but a notable share of invoices still needs follow-up.'}
+                  {financialSummary.debtStatus === 'Critical' && 'Immediate follow-up is needed because outstanding balances are rising.'}
+                </div>
+              </div>
+
+              <div className="table-card mt-4">
+                <div className="table-header">
+                  <h6><i className="bi bi-receipt-cutoff" style={{ color: 'var(--primary-blue)' }}></i> Invoice Debt Summary</h6>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-custom">
+                    <thead>
+                      <tr>
+                        <th>Invoice</th>
+                        <th>Customer</th>
+                        <th>Amount Due</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.length === 0 && (
+                        <tr><td colSpan="6" className="text-center text-muted py-4">No invoices found.</td></tr>
+                      )}
+                      {invoices.map((invoice) => {
+                        const balance = Number(invoice.TotalAmount || 0) - Number(invoice.TotalPaid || 0);
+                        return (
+                          <tr key={invoice.InvoiceID}>
+                            <td>#{invoice.InvoiceID}</td>
+                            <td>{invoice.CustomerName || invoice.CustomerID || '-'}</td>
+                            <td>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(invoice.TotalAmount || 0)}</td>
+                            <td>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(invoice.TotalPaid || 0)}</td>
+                            <td>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(Math.max(balance, 0))}</td>
+                            <td><StatusBadge status={invoice.PaymentStatus || 'Pending'} okValues={['Paid']} lowValues={['Pending', 'Partial']} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}
@@ -251,7 +408,7 @@ export default function Receptionist() {
                 ]}
               />
               <Modal id="customerModal" title={customerForm.CustomerID ? 'Edit Customer' : 'Add Customer'} icon="bi-person-plus">
-                <form onSubmit={(e) => { e.preventDefault(); if (phoneError(customerForm.Phone)) { showToast(phoneError(customerForm.Phone), 'danger'); return; } customerCrud.save(e); }}>
+                <form onSubmit={saveCustomerWithVehicle}>
                   <div className="row g-3">
                     <div className="col-md-6"><label className="form-label-custom">Full Name</label><input className="form-control form-control-custom" required value={customerForm.FullName ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, FullName: e.target.value }))} /></div>
                     <div className="col-md-6">
@@ -266,6 +423,36 @@ export default function Receptionist() {
                     <div className="col-md-6"><label className="form-label-custom">Email</label><input type="email" className="form-control form-control-custom" value={customerForm.Email ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Email: e.target.value }))} /></div>
                     <div className="col-md-6"><label className="form-label-custom">Address</label><input className="form-control form-control-custom" value={customerForm.Address ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, Address: e.target.value }))} /></div>
                   </div>
+
+                  {!customerForm.CustomerID && (
+                    <div className="border rounded p-3 mt-4">
+                      <div className="d-flex align-items-center justify-content-between mb-3">
+                        <h6 className="mb-0">Vehicle Information</h6>
+                        <small className="text-muted">Optional but recommended</small>
+                      </div>
+                      <div className="row g-3">
+                        <div className="col-md-6"><label className="form-label-custom">Plate Number</label><input className="form-control form-control-custom" value={customerForm.vehicle?.PlateNumber ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), PlateNumber: e.target.value } }))} /></div>
+                        <div className="col-md-6"><label className="form-label-custom">Make</label><input className="form-control form-control-custom" value={customerForm.vehicle?.Manufacturer ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), Manufacturer: e.target.value } }))} /></div>
+                        <div className="col-md-6"><label className="form-label-custom">Model</label><input className="form-control form-control-custom" value={customerForm.vehicle?.Model ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), Model: e.target.value } }))} /></div>
+                        <div className="col-md-6"><label className="form-label-custom">Year</label><input className="form-control form-control-custom" value={customerForm.vehicle?.Year ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), Year: e.target.value } }))} /></div>
+                        <div className="col-md-6"><label className="form-label-custom">Chassis Number</label><input className="form-control form-control-custom" value={customerForm.vehicle?.ChassisNumber ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), ChassisNumber: e.target.value } }))} /></div>
+                        <div className="col-md-6"><label className="form-label-custom">Engine Number</label><input className="form-control form-control-custom" value={customerForm.vehicle?.EngineNumber ?? ''} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), EngineNumber: e.target.value } }))} /></div>
+                        <div className="col-md-6">
+                          <label className="form-label-custom">Fuel Type</label>
+                          <select className="form-select form-control-custom" value={customerForm.vehicle?.FuelType ?? 'Petrol'} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), FuelType: e.target.value } }))}>
+                            <option>Petrol</option><option>Diesel</option><option>Electric</option><option>Hybrid</option>
+                          </select>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label-custom">Transmission</label>
+                          <select className="form-select form-control-custom" value={customerForm.vehicle?.Transmission ?? 'Manual'} onChange={(e) => setCustomerForm((f) => ({ ...f, vehicle: { ...(f.vehicle || {}), Transmission: e.target.value } }))}>
+                            <option>Manual</option><option>Automatic</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Customer</button>
                 </form>
               </Modal>
