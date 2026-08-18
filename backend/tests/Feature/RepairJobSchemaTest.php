@@ -11,7 +11,7 @@ class RepairJobSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_repair_jobs_table_has_description_column_and_accepts_description():
+    public function test_repair_jobs_table_has_description_column_and_accepts_description()
     {
         $this->assertTrue(Schema::hasColumn('repairjobs', 'Description'));
 

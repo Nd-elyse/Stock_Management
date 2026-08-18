@@ -63,8 +63,8 @@ class RepairJobCrudTest extends TestCase
         ]);
     }
 
-    public function test_create_repair_job_with_description():
-    {
+    public function test_create_repair_job_with_description()
+     {
         $this->actingAs($this->admin);
 
         $response = $this->postJson('/api/jobs', [
@@ -86,7 +86,7 @@ class RepairJobCrudTest extends TestCase
         ]);
     }
 
-    public function test_read_repair_job():
+    public function test_read_repair_job()
     {
         $job = RepairJob::create([
             'VehicleID' => $this->vehicle->VehicleID,
@@ -107,7 +107,7 @@ class RepairJobCrudTest extends TestCase
         $response->assertJsonPath('data.Status', 'In Progress');
     }
 
-    public function test_update_repair_job_description():
+    public function test_update_repair_job_description()
     {
         $job = RepairJob::create([
             'VehicleID' => $this->vehicle->VehicleID,
@@ -137,7 +137,7 @@ class RepairJobCrudTest extends TestCase
         ]);
     }
 
-    public function test_delete_repair_job():
+    public function test_delete_repair_job()
     {
         $job = RepairJob::create([
             'VehicleID' => $this->vehicle->VehicleID,
@@ -160,7 +160,7 @@ class RepairJobCrudTest extends TestCase
         $this->assertDatabaseMissing('repairjobs', ['JobID' => $jobId]);
     }
 
-    public function test_list_jobs_includes_description():
+    public function test_list_jobs_includes_description()
     {
         RepairJob::create([
             'VehicleID' => $this->vehicle->VehicleID,
@@ -191,7 +191,7 @@ class RepairJobCrudTest extends TestCase
         $response->assertJsonPath('data.1.Description', 'First job description');
     }
 
-    public function test_repair_jobs_table_has_description_column():
+    public function test_repair_jobs_table_has_description_column()
     {
         $this->assertTrue(Schema::hasColumn('repairjobs', 'Description'));
     }
