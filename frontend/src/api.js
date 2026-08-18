@@ -65,7 +65,11 @@ function toSnakeCase(value) {
   if (value && typeof value === 'object' && !(value instanceof File) && !(value instanceof Blob)) {
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => [
-        k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2').toLowerCase(),
+        k
+          .replace(/([a-z0-9])([A-Z])/g, '$1_$2')           // FooBar -> Foo_Bar
+          .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')       // HTTPServer -> HTTP_Server
+          .replace(/ID$/i, 'id')                             // FooID -> Fooid (then lowercase) -> fooid
+          .toLowerCase(),
         toSnakeCase(v),
       ])
     );

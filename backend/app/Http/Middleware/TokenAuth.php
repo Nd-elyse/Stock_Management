@@ -30,9 +30,21 @@ class TokenAuth
         $hash = hash('sha256', $token);
         $record = AuthToken::with('user')->where('TokenHash', $hash)->first();
 
-        if (!$record || !$record->user || $record->ExpiresAt < now()) {
+        if (!$record || !$record->user) {
             return response()->json(['success' => false, 'message' => 'Session expired. Please log in again.'], 401);
         }
+
+        if ($record->ExpiresAt < now()) {
+            $record->user->Status = 'Inactive';
+            $record->user->LastActivity = now();
+            $record->user->save();
+            $record->delete();
+            return response()->json(['success' => false, 'message' => 'Session expired. Please log in again.'], 401);
+        }
+
+        $record->user->Status = 'Active';
+        $record->user->LastActivity = now();
+        $record->user->save();
 
         $record->LastUsedAt = now();
         $record->save();

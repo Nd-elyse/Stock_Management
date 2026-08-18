@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TrackRepairController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VehicleController;
+use App\Http\Controllers\Api\StatsTestController;
 
 /* =========================================================================
    PUBLIC (no auth) - login flow, marketing site contact form, public stats
@@ -37,7 +38,8 @@ Route::prefix('auth')->group(function () {
 });
 Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 Route::post('/password-resets', [PasswordResetTicketController::class, 'store']);
-Route::get('/stats/public', [StatsController::class, 'public']);
+Route::get('/stats/public', [StatsController::class, 'publicStats']);
+Route::get('/stats/test', [StatsTestController::class, 'test']); // Debug endpoint - shows live database counts
 // Rate-limited: requires both name + plate to match, but throttled anyway
 // since it's an unauthenticated lookup against customer/vehicle records.
 Route::post('/track-repair', [TrackRepairController::class, 'lookup'])->middleware('throttle:20,1');
@@ -60,6 +62,7 @@ Route::middleware('auth.token')->group(function () {
 
     // Repair jobs - index is scoped to "my jobs" for Mechanic inside the controller.
     Route::get('/jobs', [RepairJobController::class, 'index']);
+    Route::get('/jobs/{id}', [RepairJobController::class, 'show']);
     Route::get('/mechanics', [MechanicController::class, 'index']);
 
     // Spare part requests - index is scoped to "my requests" for Mechanic inside the controller.

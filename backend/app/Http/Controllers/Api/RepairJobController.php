@@ -21,12 +21,7 @@ class RepairJobController extends Controller
     public function index(Request $request)
     {
         if ($request->filled('id')) {
-            $j = RepairJob::with(['vehicle.customer', 'mechanic', 'diagnostics'])->find($request->query('id'));
-            if (!$j) return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
-            $j->CustomerName = $j->vehicle->customer->FullName ?? null;
-            $j->PlateNumber = $j->vehicle->PlateNumber ?? null;
-            $j->MechanicName = $j->mechanic->FullName ?? null;
-            return response()->json(['success' => true, 'data' => $j]);
+            return $this->show((int) $request->query('id'));
         }
 
         $user = auth()->user();
@@ -43,6 +38,24 @@ class RepairJobController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $this->withNames()]);
+    }
+
+    public function show(int $id)
+    {
+        if ($id <= 0) {
+            return response()->json(['success' => false, 'message' => 'Invalid job ID.'], 422);
+        }
+
+        $job = RepairJob::with(['vehicle.customer', 'mechanic', 'diagnostics'])->find($id);
+        if (!$job) {
+            return response()->json(['success' => false, 'message' => 'Job not found.'], 404);
+        }
+
+        $job->CustomerName = $job->vehicle?->customer?->FullName ?? null;
+        $job->PlateNumber = $job->vehicle?->PlateNumber ?? null;
+        $job->MechanicName = $job->mechanic?->FullName ?? null;
+
+        return response()->json(['success' => true, 'data' => $job]);
     }
 
     public function store(Request $request)

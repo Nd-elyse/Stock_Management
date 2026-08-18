@@ -12,11 +12,13 @@ use App\Models\Vehicle;
 class StatsController extends Controller
 {
     /** Public - powers the marketing Home page counters. */
-    public function public()
+    public function publicStats()
     {
+        $completedStatuses = ['Delivered', 'Ready', 'Completed'];
+
         return response()->json(['success' => true, 'data' => [
             'customers' => Customer::count(),
-            'vehicles_serviced' => RepairJob::whereIn('Status', ['Delivered', 'Ready', 'Completed'])->count(),
+            'vehicles_serviced' => RepairJob::whereRaw('"Status"::text IN (?, ?, ?)', $completedStatuses)->count(),
             'spare_parts' => SparePart::count(),
             'mechanics' => Mechanic::count(),
         ]]);
@@ -39,11 +41,11 @@ class StatsController extends Controller
 
         if ($user->Role === 'Mechanic' && $user->MechanicID) {
             $base['my_active_jobs'] = RepairJob::where('MechanicID', $user->MechanicID)
-                ->whereIn('Status', ['Pending', 'Diagnosed', 'In Progress'])->count();
+                ->whereRaw('"Status"::text IN (?, ?, ?)', ['Pending', 'Diagnosed', 'In Progress'])->count();
             $base['my_awaiting_parts'] = RepairJob::where('MechanicID', $user->MechanicID)
-                ->where('Status', 'Awaiting Parts')->count();
+                ->whereRaw('"Status"::text = ?', ['Awaiting Parts'])->count();
             $base['my_completed'] = RepairJob::where('MechanicID', $user->MechanicID)
-                ->whereIn('Status', ['Delivered', 'Ready', 'Completed'])->count();
+                ->whereRaw('"Status"::text IN (?, ?, ?)', ['Delivered', 'Ready', 'Completed'])->count();
         }
 
         return response()->json(['success' => true, 'data' => $base]);

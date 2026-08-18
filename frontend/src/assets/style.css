@@ -2651,9 +2651,15 @@ a { transition: color 0.2s var(--ease-out); }
     .repair-final-result, .repair-lookup-card { padding: 1.25rem; border-radius: 14px; }
 }
 .repair-back-btn {
-    margin-bottom: 1.25rem;
-    padding: 0.5rem 1.1rem !important;
-    font-size: 0.85rem !important;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    margin-bottom: 1.25rem; padding: 0.75rem 1.25rem !important;
+    font-size: 0.9rem !important; font-weight: 700 !important; border-radius: 999px !important;
+    background: #f8fafc; color: var(--primary-blue); border: 1px solid rgba(37, 99, 235, 0.15) !important;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06); transition: all 0.2s ease;
+}
+.repair-back-btn:hover {
+    background: var(--primary-blue); color: #fff; border-color: var(--primary-blue) !important;
+    transform: translateY(-1px); box-shadow: 0 12px 26px rgba(37, 99, 235, 0.18);
 }
 .repair-result-header {
     display: flex; align-items: flex-start; justify-content: space-between;

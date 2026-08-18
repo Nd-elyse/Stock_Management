@@ -107,10 +107,10 @@ function JobCard({ jobData, isLatest }) {
                   <span>Payment Status</span>
                   <StatusBadge status={estimate.payment_status} okValues={['Paid']} lowValues={['Pending']} />
                 </div>
-              </div>
+              </div><br></br>
               <button
                 type="button"
-                className="btn-outline-custom mt-3"
+                className="btn-outline-custom repair-back-btn"
                 onClick={() => downloadRepairInvoice({ vehicle: jobData.vehicle, job, estimate, parts_used: partsUsed })}
               >
                 <i className="bi bi-download"></i> Download Invoice
@@ -213,6 +213,11 @@ export default function TrackRepair() {
     setForm(initialForm);
     setFieldErrors({});
     setApiError('');
+
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
   };
 
   return (

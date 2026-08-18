@@ -12,6 +12,7 @@ return new class extends Migration {
                 $table->foreignId('VehicleID')->nullable()->constrained('vehicles', 'VehicleID')->nullOnDelete();
                 $table->foreignId('MechanicID')->nullable()->constrained('mechanics', 'MechanicID')->nullOnDelete();
                 $table->foreignId('UserID')->nullable()->constrained('users', 'UserID')->nullOnDelete();
+                $table->text('Description')->nullable();
                 $table->date('StartDate')->nullable();
                 $table->date('EndDate')->nullable();
                 // Pending | Diagnosed | In Progress | Awaiting Parts | Ready |

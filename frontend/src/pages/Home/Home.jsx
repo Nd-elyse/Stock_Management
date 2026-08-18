@@ -3,7 +3,7 @@ import { statsApi } from '../../api';
 import { useReveal, showBsModal } from '../../components';
 import './Home.css';
 
-const STAT_KEYS = [
+const HOME_STATS = [
   { key: 'customers', label: 'Happy Customers' },
   { key: 'vehicles_serviced', label: 'Vehicles Serviced' },
   { key: 'spare_parts', label: 'Spare Parts' },
@@ -105,7 +105,7 @@ export default function Home() {
                 <button type="button" className="btn-outline-custom" onClick={() => showBsModal('viewRepairStatusModal')}><i className="bi bi-search"></i> View Repair Status</button>
               </div>
               <div className="hero-stats">
-                {STAT_KEYS.map((s) => (
+                {(Array.isArray(HOME_STATS) ? HOME_STATS : []).map((s) => (
                   <AnimatedStat key={s.key} target={parseInt(stats[s.key], 10) || 0} label={s.label} />
                 ))}
               </div>
