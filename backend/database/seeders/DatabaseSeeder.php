@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
                 'Password' => $password,
                 'Role' => 'Admin',
                 'FullName' => 'System Administrator',
-                'Email' => 'admin@garagemanager.test',
+                'Email' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
                 'Phone' => '0788000001',
                 'Status' => 'Inactive',
             ]
@@ -38,7 +38,7 @@ class DatabaseSeeder extends Seeder
                 'Password' => $password,
                 'Role' => 'Receptionist',
                 'FullName' => 'Reception Desk',
-                'Email' => 'reception@garagemanager.test',
+                'Email' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
                 'Phone' => '0788000002',
                 'Status' => 'Inactive',
             ]
@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
                 'Password' => $password,
                 'Role' => 'Stock Manager',
                 'FullName' => 'Stock Manager',
-                'Email' => 'stock@garagemanager.test',
+                'Email' => 'elysend69@gmail.com',
                 'Phone' => '0788000003',
                 'Status' => 'Inactive',
             ]
@@ -66,7 +66,7 @@ class DatabaseSeeder extends Seeder
                 'Password' => $password,
                 'Role' => 'Mechanic',
                 'FullName' => $mechanic->FullName,
-                'Email' => 'mechanic@garagemanager.test',
+                'Email' => 'elysend69@gmail.com',
                 'Phone' => $mechanic->Phone,
                 'Status' => 'Inactive',
                 'MechanicID' => $mechanic->MechanicID,
@@ -79,7 +79,7 @@ class DatabaseSeeder extends Seeder
 
         Supplier::firstOrCreate(
             ['CompanyName' => 'Kigali Auto Parts Ltd'],
-            ['Phone' => '0788000005', 'Email' => 'sales@kigaliautoparts.test', 'Address' => 'Kigali, Rwanda']
+            ['Phone' => '0788000005', 'Email' => 'elysend69@gmail.com', 'Address' => 'Kigali, Rwanda']
         );
     }
 }

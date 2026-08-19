@@ -62,6 +62,8 @@ Route::middleware('auth.token')->group(function () {
 
     // Repair jobs - index is scoped to "my jobs" for Mechanic inside the controller.
     Route::get('/jobs', [RepairJobController::class, 'index']);
+    Route::get('/job-history', [RepairJobController::class, 'history']);
+    Route::delete('/job-history/{id}', [RepairJobController::class, 'destroyHistory']);
     Route::get('/jobs/{id}', [RepairJobController::class, 'show']);
     Route::get('/mechanics', [MechanicController::class, 'index']);
 
@@ -131,6 +133,8 @@ Route::middleware('auth.token')->group(function () {
     /* ---------------- Admin + Receptionist + Mechanic: job status/diagnostics ---------------- */
     Route::middleware('role:Admin,Receptionist,Mechanic')->group(function () {
         Route::put('/jobs/{id}', [RepairJobController::class, 'update']);
+        Route::post('/jobs/{id}/next', [RepairJobController::class, 'next']);
+        Route::post('/jobs/{id}/cancel', [RepairJobController::class, 'cancel']);
     });
     Route::middleware('role:Admin,Mechanic')->group(function () {
         Route::get('/jobs/{jobId}/diagnostics', [RepairJobController::class, 'diagnostics']);

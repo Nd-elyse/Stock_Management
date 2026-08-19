@@ -322,12 +322,14 @@ export function StatCard({ icon, color = 'blue', value, label, colClass = 'col-6
    GENERIC DATA TABLE
    columns: [{ key, label, render?(row) }]
    ============================================================ */
-export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLabel, onAdd, onRefresh, renderActions, emptyText = 'No records found.' }) {
+export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLabel, onAdd, onRefresh, renderActions, emptyText = 'No records found.', filters = [] }) {
   const [query, setQuery] = useState('');
+  const [filterValues, setFilterValues] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const safeRows = rows || [];
 
   const filtered = safeRows.filter((row) => {
+    if (filters.some((filter) => filterValues[filter.key] && (filter.matches ? !filter.matches(row, filterValues[filter.key]) : String(row[filter.key] ?? '') !== filterValues[filter.key]))) return false;
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return columns.some((c) => String(c.render ? '' : row[c.key] ?? '').toLowerCase().includes(q)) || JSON.stringify(row).toLowerCase().includes(q);
@@ -348,10 +350,21 @@ export function DataTable({ title, icon, columns, rows, searchPlaceholder, addLa
               <i className="bi bi-plus-lg"></i> {addLabel || 'Add'}
             </button>
           )}
-          <div className="search-box">
-            <i className="bi bi-search"></i>
-            <input type="text" placeholder={searchPlaceholder || 'Search...'} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <div className="search-box table-search-box">
+            <input type="search" aria-label={searchPlaceholder || 'Search records'} placeholder={searchPlaceholder || 'Search records...'} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
+          {filters.map((filter) => (
+            <select
+              key={filter.key}
+              className="form-select form-control-custom table-filter-select"
+              aria-label={filter.label}
+              value={filterValues[filter.key] || ''}
+              onChange={(e) => setFilterValues((current) => ({ ...current, [filter.key]: e.target.value }))}
+            >
+              <option value="">All {filter.label}</option>
+              {filter.options.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          ))}
         </div>
       </div>
 
@@ -422,7 +435,7 @@ export function printElementById(bodyId, title) {
   setTimeout(() => { win.print(); win.close(); }, 250);
 }
 
-export function DetailsModal({ id, title, icon = 'bi-eye', fields, printable = false }) {
+export function DetailsModal({ id, title, icon = 'bi-eye', fields, printable = false, actions }) {
   const bodyId = `${id}-body`;
   const safeFields = fields || [];
   return (
@@ -445,11 +458,12 @@ export function DetailsModal({ id, title, icon = 'bi-eye', fields, printable = f
               </tbody>
             </table>
           </div>
-          {printable && (
+          {(printable || actions) && (
             <div className="modal-footer no-print">
-              <button type="button" className="btn-blue btn-sm" onClick={() => printElementById(bodyId, title)}>
+              {actions}
+              {printable && <button type="button" className="btn-blue btn-sm" onClick={() => printElementById(bodyId, title)}>
                 <i className="bi bi-printer"></i> Print
-              </button>
+              </button>}
             </div>
           )}
         </div>
@@ -634,7 +648,6 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
           <div className="topbar-actions">
             {onSearch && (
               <div className="search-box d-none d-lg-flex">
-                <i className="bi bi-search"></i>
                 <input type="text" placeholder="Search records..." onChange={(e) => onSearch(e.target.value)} />
               </div>
             )}

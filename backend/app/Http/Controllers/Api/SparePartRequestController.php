@@ -21,6 +21,8 @@ class SparePartRequestController extends Controller
             $r->MechanicName = $r->mechanic->FullName ?? null;
             $r->SparePartName = $r->sparePart->PartName ?? null;
             $r->JobPlate = $r->job->vehicle->PlateNumber ?? null;
+            $r->UnitCost = $r->UnitCost ?? (float) ($r->sparePart->UnitPrice ?? 0);
+            $r->TotalCost = $r->TotalCost ?? round((float) $r->UnitCost * (int) $r->QuantityRequested, 2);
             return $r;
         });
         return response()->json(['success' => true, 'data' => $rows]);
@@ -38,15 +40,22 @@ class SparePartRequestController extends Controller
             'reason' => 'required|string|min:5',
             'job_id' => 'nullable|integer|exists:repairjobs,JobID',
         ]);
+        $part = SparePart::find($data['spare_part_id']);
+        if (!$part || (int) $data['quantity_requested'] > (int) $part->Quantity) {
+            return response()->json(['success' => false, 'message' => 'Requested quantity exceeds available stock.'], 422);
+        }
+        $unitCost = (float) $part->UnitPrice;
         $reqRow = SparePartRequest::create([
             'MechanicID' => $user->MechanicID,
             'JobID' => $data['job_id'] ?? null,
             'SparePartID' => $data['spare_part_id'],
             'QuantityRequested' => $data['quantity_requested'],
+            'UnitCost' => $unitCost,
+            'TotalCost' => round($unitCost * (int) $data['quantity_requested'], 2),
             'Reason' => $data['reason'],
             'Status' => 'Pending',
         ]);
-        $partName = SparePart::find($data['spare_part_id'])->PartName ?? 'a part';
+        $partName = $part->PartName ?? 'a part';
         $this->notifyRole('Stock Manager', 'part_request', "New spare part request #{$reqRow->RequestID} for {$partName} (x{$data['quantity_requested']})", '#requests');
         return response()->json(['success' => true, 'message' => 'Request submitted successfully.', 'data' => $reqRow]);
     }
@@ -80,6 +89,8 @@ class SparePartRequestController extends Controller
             ]);
 
             $reqRow->Status = 'Fulfilled';
+            $reqRow->UnitCost = $reqRow->UnitCost ?? $part->UnitPrice;
+            $reqRow->TotalCost = $reqRow->TotalCost ?? ((float) $reqRow->UnitCost * (int) $reqRow->QuantityRequested);
             $reqRow->DecidedAt = now()->toDateString();
             $reqRow->DecidedByUserID = auth()->id();
             $reqRow->save();

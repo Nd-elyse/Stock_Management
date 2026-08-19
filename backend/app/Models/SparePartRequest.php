@@ -8,7 +8,7 @@ class SparePartRequest extends Model
     protected $table = 'sparepartrequests';
     protected $primaryKey = 'RequestID';
     public $timestamps = false;
-    protected $fillable = ['MechanicID', 'JobID', 'SparePartID', 'QuantityRequested', 'Reason', 'Status', 'DecidedAt', 'DecidedByUserID'];
+    protected $fillable = ['MechanicID', 'JobID', 'SparePartID', 'QuantityRequested', 'UnitCost', 'TotalCost', 'Reason', 'Status', 'DecidedAt', 'DecidedByUserID'];
 
     public function mechanic()
     {

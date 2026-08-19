@@ -3,9 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useReveal, StatusBadge } from '../../components';
 import { trackRepairApi } from '../../api';
 import { downloadRepairInvoice } from '../../utils/invoicePdf';
+import { JOB_WORKFLOW_STATUSES, jobStatusLabel, normalizeJobStatus } from '../../utils/jobStatus';
 
 const initialForm = { fullName: '', plateNumber: '' };
-const STATUS_STEPS = ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts', 'Ready', 'Delivered'];
+const STATUS_STEPS = JOB_WORKFLOW_STATUSES;
 
 function money(n) {
   return `${Number(n || 0).toLocaleString('en-US')} RWF`;
@@ -18,17 +19,16 @@ function fmtDateTime(d) {
 }
 
 function StatusTimeline({ status }) {
-  // "Awaiting Parts" is a side-branch off "In Progress", not a forward step -
-  // show progress through the main line up to whichever of the two applies.
-  const effectiveIndex = STATUS_STEPS.indexOf(status === 'Awaiting Parts' ? 'In Progress' : status);
+  const normalizedStatus = normalizeJobStatus(status);
+  const effectiveIndex = STATUS_STEPS.indexOf(normalizedStatus);
   return (
     <div className="repair-status-track">
-      {STATUS_STEPS.filter((s) => s !== 'Awaiting Parts').map((step, i) => {
+      {STATUS_STEPS.map((step, i) => {
         const state = i < effectiveIndex ? 'done' : i === effectiveIndex ? 'active' : 'upcoming';
         return (
           <div className={`repair-status-step ${state}`} key={step}>
             <div className="repair-status-dot"><i className={`bi ${state === 'done' ? 'bi-check-lg' : 'bi-circle-fill'}`}></i></div>
-            <span>{step === 'In Progress' && status === 'Awaiting Parts' ? 'Awaiting Parts' : step}</span>
+            <span>{jobStatusLabel(step)}</span>
           </div>
         );
       })}
@@ -47,7 +47,7 @@ function JobCard({ jobData, isLatest }) {
           <span className="repair-job-card-dates">Started {job.start_date}{job.end_date ? ` • Completed ${job.end_date}` : ''}</span>
         </div>
         <div className="d-flex align-items-center gap-2">
-          <StatusBadge status={job.status} okValues={['Delivered', 'Ready']} lowValues={['Cancelled']} />
+          <StatusBadge status={jobStatusLabel(job.status)} okValues={['Delivered', 'Ready']} lowValues={['Cancelled']} />
           <i className={`bi ${open ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
         </div>
       </button>
@@ -130,6 +130,7 @@ function JobCard({ jobData, isLatest }) {
                     {h.previous_status ? ` (from ${h.previous_status})` : ' — job opened'}
                     {h.mechanic_name ? ` • ${h.mechanic_name}` : ''}
                     {' • '}{fmtDateTime(h.changed_at)}
+                    {h.notes ? ` • ${h.notes}` : ''}
                   </li>
                 ))}
               </ul>

@@ -4,6 +4,7 @@ import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard,
 import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
 import { useAuth, useToast } from '../../context';
 import { customersApi, jobsApi, billingApi, notificationsApi, authApi } from '../../api';
+import { JOB_ALL_STATUSES, JOB_WORKFLOW_STATUSES, jobStatusLabel, normalizeJobStatus } from '../../utils/jobStatus';
 
 const NOTIFICATION_ICONS = { job: 'bi-plus-circle-fill', stock: 'bi-box-seam-fill', payment: 'bi-cash-coin', system: 'bi-info-circle-fill' };
 const NOTIFICATION_COLORS = { job: '#2563eb', stock: '#d97706', payment: '#16a34a', system: '#64748b' };
@@ -70,6 +71,7 @@ export default function Receptionist() {
   const [mechanics, setMechanics] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingJobId, setUpdatingJobId] = useState(null);
 
   const [customerForm, setCustomerForm] = useState(emptyCustomer);
   const [vehicleForm, setVehicleForm] = useState(emptyVehicle);
@@ -180,6 +182,26 @@ export default function Receptionist() {
   const customerCrud = withCrud('Customer', { save: customersApi.saveCustomer, remove: customersApi.removeCustomer }, customerForm, setCustomerForm, emptyCustomer, 'customerModal', loadAll);
   const vehicleCrud = withCrud('Vehicle', { save: customersApi.saveVehicle, remove: customersApi.removeVehicle }, vehicleForm, setVehicleForm, emptyVehicle, 'vehicleModal', loadAll);
   const jobCrud = withCrud('Repair job', { save: jobsApi.saveJob, remove: jobsApi.removeJob }, jobForm, setJobForm, emptyJob, 'jobModal', loadAll);
+  jobCrud.save = async (e) => {
+    e.preventDefault();
+    const payload = { ...jobForm };
+    if (payload.JobID) delete payload.Status;
+    const res = await jobsApi.saveJob(payload);
+    if (res.success) { showToast('Repair job saved.', 'success'); hideBsModal('jobModal'); loadAll(); }
+    else showToast(res.message || 'Could not save repair job.', 'danger');
+  };
+
+  const changeJobStatus = async (job, action) => {
+    if (updatingJobId === job.JobID) return;
+    setUpdatingJobId(job.JobID);
+    const res = action === 'next' ? await jobsApi.nextJob(job.JobID) : await jobsApi.cancelJob(job.JobID);
+    if (res.success) {
+      if (res.data) setJobs((current) => current.map((item) => item.JobID === job.JobID ? { ...item, ...res.data } : item));
+      showToast(res.message || 'Repair job status updated.', 'success');
+      loadAll();
+    } else showToast(res.message || 'Could not update repair job status.', 'danger');
+    setUpdatingJobId(null);
+  };
   const invoiceCrud = withCrud('Invoice', { save: billingApi.saveInvoice, remove: billingApi.removeInvoice }, invoiceForm, setInvoiceForm, emptyInvoice, 'invoiceModal', loadAll);
   const paymentCrud = withCrud('Payment', { save: billingApi.savePayment, remove: billingApi.removePayment }, paymentForm, setPaymentForm, emptyPayment, 'paymentModal', loadAll);
 
@@ -196,7 +218,11 @@ export default function Receptionist() {
 
     const payload = { ...customerForm };
     const vehiclePayload = payload.vehicle;
-    const hasVehicleData = !!vehiclePayload && Object.values(vehiclePayload).some((value) => value !== '' && value !== null && value !== undefined);
+    const vehicleIdentityFields = ['PlateNumber', 'Manufacturer', 'Model', 'Year', 'ChassisNumber', 'EngineNumber', 'Mileage'];
+    const hasVehicleData = !!vehiclePayload && vehicleIdentityFields.some((field) => {
+      const value = vehiclePayload[field];
+      return value !== '' && value !== null && value !== undefined;
+    });
 
     if (hasVehicleData) payload.vehicle = vehiclePayload;
     else delete payload.vehicle;
@@ -213,7 +239,7 @@ export default function Receptionist() {
   };
 
   // ---- Derived, real-data stats for the per-page summary cards ----
-  const NOT_ACTIVE_JOB_STATUSES = ['Delivered', 'Ready', 'Completed', 'Cancelled'];
+  const NOT_ACTIVE_JOB_STATUSES = ['Delivered', 'Ready', 'Cancelled'];
   const openJobVehicleIds = useMemo(
     () => new Set(jobs.filter((j) => !NOT_ACTIVE_JOB_STATUSES.includes(j.Status)).map((j) => j.VehicleID)),
     [jobs]
@@ -273,7 +299,7 @@ export default function Receptionist() {
               <div className="row g-3">
                 <StatCard icon="bi-people-fill" color="blue" value={customers.length} label="Customers" />
                 <StatCard icon="bi-car-front-fill" color="green" value={vehicles.length} label="Vehicles" />
-                <StatCard icon="bi-wrench-adjustable" color="orange" value={jobs.filter((j) => j.Status !== 'Delivered').length} label="Active Jobs" />
+                <StatCard icon="bi-wrench-adjustable" color="orange" value={jobs.filter((j) => !NOT_ACTIVE_JOB_STATUSES.includes(normalizeJobStatus(j.Status))).length} label="Active Jobs" />
                 <StatCard icon="bi-receipt-cutoff" color="purple" value={Number(totalInvoiceValue || 0).toLocaleString('en-US')} label={`${invoices.length} Invoices Total`} />
               </div>
             </>
@@ -536,18 +562,45 @@ export default function Receptionist() {
             <>
               <div className="row g-3 mb-3">
                 <StatCard icon="bi-wrench-adjustable" color="blue" value={jobs.length} label="Total Jobs" colClass="col-6 col-sm-6 col-lg-3" />
-                <StatCard icon="bi-lightning-charge-fill" color="orange" value={jobs.filter((j) => ['Diagnosed', 'In Progress', 'Awaiting Parts'].includes(j.Status)).length} label="Active Jobs" colClass="col-6 col-sm-6 col-lg-3" />
-                <StatCard icon="bi-check-circle-fill" color="green" value={jobs.filter((j) => ['Delivered', 'Ready', 'Completed'].includes(j.Status)).length} label="Completed Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-lightning-charge-fill" color="orange" value={jobs.filter((j) => JOB_WORKFLOW_STATUSES.slice(1, 4).includes(normalizeJobStatus(j.Status))).length} label="Active Jobs" colClass="col-6 col-sm-6 col-lg-3" />
+                <StatCard icon="bi-check-circle-fill" color="green" value={jobs.filter((j) => ['Ready', 'Delivered'].includes(normalizeJobStatus(j.Status))).length} label="Completed Jobs" colClass="col-6 col-sm-6 col-lg-3" />
                 <StatCard icon="bi-hourglass-split" color="red" value={jobs.filter((j) => j.Status === 'Pending').length} label="Pending Jobs" colClass="col-6 col-sm-6 col-lg-3" />
               </div>
               <DataTable
                 onRefresh={loadAll}
-                title="Repair Jobs" icon="bi-wrench-adjustable" addLabel="New Job" onAdd={jobCrud.openAdd} searchPlaceholder="Search jobs..."
+                title="Repair Jobs" icon="bi-wrench-adjustable" addLabel="New Job" onAdd={jobCrud.openAdd} searchPlaceholder="Search repair jobs..."
                 columns={[
                   { key: 'VehicleID', label: 'Vehicle', render: (r) => vehiclePlate(r.VehicleID) },
                   { key: 'MechanicID', label: 'Mechanic', render: (r) => mechanicName(r.MechanicID) },
                   { key: 'Description', label: 'Description', render: (r) => <TruncatedText text={r.Description} limit={36} /> },
-                  { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status} /> },
+                  { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={jobStatusLabel(r.Status)} /> },
+                  { key: 'UpdateStatus', label: 'Update Status', render: (r) => {
+                    const status = normalizeJobStatus(r.Status);
+                    const busy = updatingJobId === r.JobID;
+                    return (
+                      <div className="job-status-actions">
+                        <button
+                          type="button"
+                          className="job-status-btn job-next-btn"
+                          onClick={() => changeJobStatus(r, 'next')}
+                          disabled={status === 'Cancelled' || status === 'Delivered' || busy}
+                          title={status === 'Cancelled' ? 'Cancelled jobs cannot continue' : 'Advance to the next workflow status'}
+                        >
+                          <i className={`bi ${busy ? 'bi-arrow-repeat spin' : 'bi-arrow-right'}`}></i>
+                          {busy ? 'Updating...' : 'Next'}
+                        </button>
+                        <button
+                          type="button"
+                          className="job-status-btn job-cancel-btn"
+                          onClick={() => changeJobStatus(r, 'cancel')}
+                          disabled={status === 'Cancelled' || busy}
+                          title="Mark this repair job as cancelled"
+                        >
+                          <i className="bi bi-x-circle"></i> Cancelled
+                        </button>
+                      </div>
+                    );
+                  } },
                 ]}
                 rows={jobs}
                 renderActions={(r) => (
@@ -568,8 +621,12 @@ export default function Receptionist() {
                   { label: 'Start Date', value: viewJob.row.StartDate },
                   { label: 'End Date', value: viewJob.row.EndDate },
                   { label: 'Description', value: viewJob.row.Description },
-                  { label: 'Status', value: viewJob.row.Status },
+                  { label: 'Status', value: jobStatusLabel(viewJob.row.Status) },
                 ]}
+                actions={viewJob.row && <>
+                  {normalizeJobStatus(viewJob.row.Status) !== 'Cancelled' && normalizeJobStatus(viewJob.row.Status) !== 'Delivered' && <button type="button" className="btn-blue btn-sm" onClick={() => changeJobStatus(viewJob.row, 'next')}><i className="bi bi-arrow-right"></i> Next</button>}
+                  {normalizeJobStatus(viewJob.row.Status) !== 'Cancelled' && <button type="button" className="btn-icon danger" title="Cancel job" onClick={() => changeJobStatus(viewJob.row, 'cancel')}><i className="bi bi-x-circle"></i></button>}
+                </>}
               />
               <Modal id="jobModal" title={jobForm.JobID ? 'Edit Repair Job' : 'New Repair Job'} icon="bi-wrench-adjustable">
                 <form onSubmit={jobCrud.save}>
@@ -589,14 +646,18 @@ export default function Receptionist() {
                       </select>
                     </div>
                     <div className="col-12"><label className="form-label-custom">Description</label><textarea className="form-control form-control-custom" rows={3} required value={jobForm.Description ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, Description: e.target.value }))}></textarea></div>
-                    <div className="col-md-6">
-                      <label className="form-label-custom">Status</label>
-                      <select className="form-select form-control-custom" value={jobForm.Status ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, Status: e.target.value }))}>
-                        <option>Pending</option><option>Diagnosed</option><option>In Progress</option><option>Ready</option><option>Delivered</option>
-                      </select>
-                    </div>
+                    {!jobForm.JobID && (
+                      <div className="col-md-6">
+                        <label className="form-label-custom">Status</label>
+                        <select className="form-select form-control-custom" value={jobForm.Status ?? ''} onChange={(e) => setJobForm((f) => ({ ...f, Status: e.target.value }))}>
+                          {JOB_ALL_STATUSES.map((status) => <option key={status} value={status}>{jobStatusLabel(status)}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
-                  <button type="submit" className="btn-primary-full btn-save mt-3"><i className="bi bi-check-circle"></i> Save Job</button>
+                  <div className="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" className="btn-primary-full btn-save flex-grow-1"><i className="bi bi-check-circle"></i> Save Job</button>
+                  </div>
                 </form>
               </Modal>
             </>
@@ -717,6 +778,7 @@ export default function Receptionist() {
               <DataTable
                 onRefresh={loadAll}
                 title="Payments" icon="bi-cash-coin" addLabel="Record Payment" onAdd={paymentCrud.openAdd} searchPlaceholder="Search payments..."
+                filters={[{ key: 'PaymentMethod', label: 'Method', options: Array.from(new Set(payments.map((payment) => payment.PaymentMethod).filter(Boolean))) }]}
                 columns={[
                   { key: 'InvoiceID', label: 'Invoice #' }, { key: 'Amount', label: 'Amount Paid' },
                   { key: 'PaymentMethod', label: 'Method' }, { key: 'PaymentDate', label: 'Date' },

@@ -56,9 +56,11 @@ export default function Login() {
       return;
     }
     setSubmitting(true);
-    const result = await login(username.trim(), password);
+    const result = await login(username.trim(), password, rememberMe);
     setSubmitting(false);
     if (result.requiresOtp) {
+      setOtpCode('');
+      setOtpError('');
       openModal('otpModal');
       return;
     }

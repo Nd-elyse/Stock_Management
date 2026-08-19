@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../assets/staff.css';
 import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard, WelcomeBanner, StatusBadge, showBsModal, hideBsModal, ConfirmDelete } from '../../components';
 import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
+import { jobStatusLabel, normalizeJobStatus } from '../../utils/jobStatus';
 import { useAuth, useToast } from '../../context';
 import { usersApi, jobsApi, inventoryApi, notificationsApi, contactApi, authApi, customersApi, billingApi } from '../../api';
 
@@ -34,7 +35,7 @@ const NAV_SECTIONS = [
 
 const ROLE_OPTIONS = ['Admin', 'Receptionist', 'Mechanic', 'Stock Manager'];
 const SPECIALIZATION_OPTIONS = ['Engine Repair', 'Transmission', 'Electrical', 'Brake Systems', 'Suspension', 'AC & Cooling', 'Bodywork & Paint', 'Diagnostics', 'General Maintenance'];
-const COMPLETED_JOB_STATUSES = ['Delivered', 'Ready', 'Completed'];
+const COMPLETED_JOB_STATUSES = ['Delivered', 'Ready'];
 const NOTIFICATION_ICONS = { job: 'bi-plus-circle-fill', stock: 'bi-box-seam-fill', payment: 'bi-cash-coin', system: 'bi-info-circle-fill' };
 const NOTIFICATION_COLORS = { job: '#2563eb', stock: '#d97706', payment: '#16a34a', system: '#64748b' };
 
@@ -438,14 +439,14 @@ export default function Admin() {
 
   const reportPanel = () => {
     if (reportTab === 'repairs') {
-      const completed = jobs.filter((j) => COMPLETED_JOB_STATUSES.includes(j.Status)).length;
+      const completed = jobs.filter((j) => COMPLETED_JOB_STATUSES.includes(normalizeJobStatus(j.Status))).length;
       return (
         <ReportPanel
           icon="bi-clipboard2-pulse-fill" title="Repairs Report"
           stats={[
             { label: 'Total Repairs', value: jobs.length, icon: 'bi-clipboard2-pulse-fill', color: 'blue' },
             { label: 'Completed', value: completed, icon: 'bi-check-circle-fill', color: 'green' },
-            { label: 'In Progress', value: jobs.length - completed, icon: 'bi-clock-fill', color: 'amber' },
+            { label: 'In Progress', value: jobs.filter((j) => !['Delivered', 'Ready', 'Cancelled'].includes(normalizeJobStatus(j.Status))).length, icon: 'bi-clock-fill', color: 'amber' },
           ]}
           columns={[
             { key: 'JobID', label: 'JobID' },
@@ -453,7 +454,7 @@ export default function Admin() {
             { key: 'PlateNumber', label: 'Vehicle', render: (r) => r.PlateNumber || '-' },
             { key: 'MechanicName', label: 'Mechanic', render: (r) => r.MechanicName || 'Unassigned' },
             { key: 'StartDate', label: 'Start Date', render: (r) => fmtDate(r.StartDate) },
-            { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status} okValues={['Completed', 'Delivered', 'Ready']} lowValues={['Cancelled']} /> },
+            { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={jobStatusLabel(r.Status)} okValues={['Delivered', 'Ready']} lowValues={['Cancelled']} /> },
           ]}
           rows={jobs}
         />
@@ -851,6 +852,7 @@ export default function Admin() {
                 addLabel="Add User"
                 onAdd={openAddUser}
                 searchPlaceholder="Search users..."
+                filters={[{ key: 'Status', label: 'Status', options: ['Active', 'Inactive'] }]}
                 columns={[
                   { key: 'FullName', label: 'Full Name' },
                   { key: 'Username', label: 'Username' },
@@ -897,6 +899,7 @@ export default function Admin() {
                 title="Mechanics Directory"
                 icon="bi-person-vcard-fill"
                 searchPlaceholder="Search mechanics..."
+                filters={[{ key: 'Status', label: 'Status', options: ['Active', 'Inactive'] }]}
                 columns={[
                   { key: 'FullName', label: 'Name' },
                   { key: 'Specialization', label: 'Specialty', render: (r) => r.Specialization || '-' },

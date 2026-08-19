@@ -453,11 +453,19 @@ export default function StockManager() {
               <DataTable
                 onRefresh={loadAll}
                 title="Mechanic Part Requests" icon="bi-box-seam" searchPlaceholder="Search requests..."
+                filters={[{
+                  key: 'Status',
+                  label: 'Status',
+                  options: Array.from(new Set(['Pending', ...requests.map((request) => request.Status).filter(Boolean)])),
+                  matches: (row, value) => (row.Status || 'Pending') === value,
+                }]}
                 columns={[
                   { key: 'MechanicName', label: 'Mechanic', render: (r) => r.MechanicName || '-' },
                   { key: 'JobID', label: 'Job', render: (r) => r.JobID || '-' },
                   { key: 'SparePartID', label: 'Part', render: (r) => r.SparePartName || partName(r.SparePartID) },
                   { key: 'QuantityRequested', label: 'Qty' },
+                  { key: 'UnitCost', label: 'Unit Cost', render: (r) => `${Number(r.UnitCost || 0).toLocaleString('en-US')} RWF` },
+                  { key: 'TotalCost', label: 'Total Cost', render: (r) => `${Number(r.TotalCost || (Number(r.UnitCost || 0) * Number(r.QuantityRequested || 0))).toLocaleString('en-US')} RWF` },
                   { key: 'SparePartID_stock', label: 'Stock', render: (r) => partStock(r.SparePartID) },
                   { key: 'Reason', label: 'Reason', render: (r) => <TruncatedText text={r.Reason} limit={28} /> },
                   { key: 'Status', label: 'Status', render: (r) => <StatusBadge status={r.Status || 'Pending'} okValues={['Fulfilled', 'Approved']} lowValues={['Rejected']} /> },
@@ -487,6 +495,8 @@ export default function StockManager() {
                   { label: 'Job #', value: viewRequest.row.JobID },
                   { label: 'Vehicle Plate', value: viewRequest.row.JobPlate },
                   { label: 'Quantity Requested', value: viewRequest.row.QuantityRequested },
+                  { label: 'Unit Cost', value: `${Number(viewRequest.row.UnitCost || 0).toLocaleString('en-US')} RWF` },
+                  { label: 'Total Cost', value: `${Number(viewRequest.row.TotalCost || 0).toLocaleString('en-US')} RWF` },
                   { label: 'Reason', value: viewRequest.row.Reason },
                   { label: 'Status', value: viewRequest.row.Status || 'Pending' },
                   { label: 'Decided At', value: fmtDateTime(viewRequest.row.DecidedAt) },
@@ -500,6 +510,7 @@ export default function StockManager() {
               <DataTable
                 onRefresh={loadAll}
                 title="Stock Movement History" icon="bi-clock-history" searchPlaceholder="Search stock log..."
+                filters={[{ key: 'TransactionType', label: 'Type', options: Array.from(new Set(transactions.map((transaction) => transaction.TransactionType).filter(Boolean))) }]}
                 columns={[
                   { key: 'TransactionDate', label: 'Date', render: (r) => r.TransactionDate || fmtDateTime(r.CreatedAt) },
                   { key: 'SparePartID', label: 'Part', render: (r) => r.PartName || partName(r.SparePartID) },

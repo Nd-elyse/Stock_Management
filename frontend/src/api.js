@@ -1,26 +1,25 @@
 import axios from 'axios';
 
-/* ============================================================
-   AXIOS CLIENT + TOKEN AUTH
-   ------------------------------------------------------------
-   The Laravel backend uses Sanctum bearer tokens instead of PHP
-   sessions/CSRF, so every write is authenticated with an
-   `Authorization: Bearer <token>` header instead of a CSRF token +
-   session cookie. The token is issued by /auth/verify-otp and kept in
-   localStorage so it survives a page refresh (mirrors sessionStorage
-   usage in context.jsx for the user object).
-   ============================================================ */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const TOKEN_KEY = 'gm_auth_token';
 
+
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || '';
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || '';
 }
 
-export function setToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+export function setToken(token, persist = false) {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  if (!token) return;
+  if (persist) localStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.setItem(TOKEN_KEY, token);
+}
+
+/** True if the current token was stored under "Remember me" (localStorage) rather than a session-only tab. */
+export function isTokenRemembered() {
+  return !!localStorage.getItem(TOKEN_KEY);
 }
 
 const client = axios.create({
@@ -49,17 +48,6 @@ client.interceptors.response.use(
   }
 );
 
-/** Always resolves to the parsed JSON body ({ success, message, data, ... }). */
-/**
- * The React forms across this app were built using the database's own
- * PascalCase column names as form field keys (FullName, CustomerID, ...),
- * but the Laravel controllers validate snake_case request bodies
- * (full_name, customer_id, ...) - standard Laravel convention. Rather
- * than rewrite every form/field in the app (which would risk changing
- * behaviour/UX), outgoing write payloads are auto-converted here.
- * GET responses are untouched - Eloquent already returns the original
- * PascalCase column names, which is what these components expect.
- */
 function toSnakeCase(value) {
   if (Array.isArray(value)) return value.map(toSnakeCase);
   if (value && typeof value === 'object' && !(value instanceof File) && !(value instanceof Blob)) {
@@ -96,7 +84,7 @@ async function request(method, url, data, params) {
    ============================================================ */
 export const authApi = {
   login: (username, password) => request('post', '/auth/login', { username, password }),
-  verifyOtp: (username, otp) => request('post', '/auth/verify-otp', { username, otp }),
+  verifyOtp: (username, otp, remember) => request('post', '/auth/verify-otp', { username, otp, remember: !!remember }),
   resendOtp: (username) => request('post', '/auth/resend-otp', { username }),
   cancelOtp: (username) => request('post', '/auth/cancel-otp', { username }),
   renewSession: () => request('post', '/auth/session-renew'),
@@ -128,8 +116,12 @@ export const jobsApi = {
   removeMechanic: (id) => request('delete', `/mechanics/${id}`),
 
   listJobs: () => request('get', '/jobs'),
+  listJobHistory: () => request('get', '/job-history'),
+  removeJobHistory: (id) => request('delete', `/job-history/${id}`),
   getJob: (id) => request('get', '/jobs', null, { id }),
   saveJob: (payload) => request(payload.JobID ? 'put' : 'post', payload.JobID ? `/jobs/${payload.JobID}` : '/jobs', payload),
+  nextJob: (id) => request('post', `/jobs/${id}/next`),
+  cancelJob: (id) => request('post', `/jobs/${id}/cancel`),
   removeJob: (id) => request('delete', `/jobs/${id}`),
 
   saveDiagnostics: (jobId, payload) => request('post', `/jobs/${jobId}/diagnostics`, payload),

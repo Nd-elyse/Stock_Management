@@ -72,8 +72,8 @@ class TrackRepairController extends Controller
 
         $summary = [
             'total_jobs' => $jobs->count(),
-            'completed_jobs' => $jobs->whereIn('Status', ['Delivered', 'Ready', 'Completed'])->count(),
-            'in_progress_jobs' => $jobs->whereIn('Status', ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts'])->count(),
+            'completed_jobs' => $jobs->filter(fn ($job) => in_array(RepairJob::normalizeStatus($job->Status), ['Delivered', 'Ready'], true))->count(),
+            'in_progress_jobs' => $jobs->filter(fn ($job) => in_array(RepairJob::normalizeStatus($job->Status), array_slice(RepairJob::WORKFLOW_STATUSES, 0, -2), true))->count(),
             'total_spent' => round($totalSpent, 2),
             'total_paid' => round($totalPaid, 2),
             'balance_due' => round(max(0, $totalSpent - $totalPaid), 2),
@@ -109,6 +109,7 @@ class TrackRepairController extends Controller
             'new_status' => $h->NewStatus,
             'mechanic_name' => $h->MechanicName,
             'changed_at' => $h->ChangedAt,
+            'notes' => $h->Notes ?: "Status changed to {$h->NewStatus}.",
         ]);
 
         $partsUsed = SparePartRequest::with('sparePart')
@@ -149,7 +150,7 @@ class TrackRepairController extends Controller
         return [
             'job' => [
                 'job_id' => $job->JobID,
-                'status' => $job->Status,
+                'status' => RepairJob::normalizeStatus($job->Status),
                 'start_date' => $job->StartDate,
                 'end_date' => $job->EndDate,
                 'mechanic_name' => $job->mechanic->FullName ?? 'Not yet assigned',

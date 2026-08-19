@@ -2,8 +2,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\OtpMail;
 use App\Models\AuthToken;
 use App\Models\Otp;
+use App\Models\RateLimit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +18,19 @@ class AuthController extends Controller
 {
     private const OTP_TTL_MINUTES = 5;
     private const TOKEN_TTL_DAYS = 7;
+    private const TOKEN_TTL_DAYS_REMEMBERED = 30;
+
+    // Rate-limit tuning. Backed by the `rate_limits` table (see RateLimit
+    // model) which existed in the database already but nothing wrote to
+    // it, so login/OTP endpoints previously had no brute-force or spam
+    // protection at all.
+    private const LOGIN_MAX_ATTEMPTS = 5;      // failed password attempts
+    private const LOGIN_DECAY_MINUTES = 15;
+    private const OTP_VERIFY_MAX_ATTEMPTS = 8; // failed OTP attempts, across resends
+    private const OTP_VERIFY_DECAY_MINUTES = 15;
+    private const RESEND_COOLDOWN_SECONDS = 30;   // minimum gap between resend requests
+    private const RESEND_MAX_ATTEMPTS = 5;        // resends allowed per decay window
+    private const RESEND_DECAY_MINUTES = 15;
 
     /** STEP 1: username + password -> OTP is issued and "sent" (logged/mailed). */
     public function login(Request $request)
@@ -25,22 +40,42 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        $rateKey = $this->rateIdentifier($data['username'], $request);
+
+        if ($this->isRateLimited($rateKey, 'login')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many failed sign-in attempts. Please try again in a few minutes.',
+            ], 429);
+        }
+
         $user = User::where('Username', $data['username'])->first();
 
         if (!$user || !Hash::check($data['password'], $user->Password)) {
+            $this->registerFailure($rateKey, 'login', self::LOGIN_MAX_ATTEMPTS, self::LOGIN_DECAY_MINUTES);
             return response()->json(['success' => false, 'message' => 'Invalid username or password.'], 401);
         }
 
-        $otp = $this->issueOtp($user, 'login');
+        // Credentials are correct, but without a registered email there is
+        // nowhere to deliver the OTP - fail clearly instead of silently
+        // issuing a code the user can never receive.
+        if (empty($user->Email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account has no registered email address. Contact an administrator to complete sign-in.',
+            ], 422);
+        }
+
+        // Correct password: clear the failure counter for this identifier.
+        $this->clearRateLimit($rateKey, 'login');
+
+        $this->issueOtp($user, 'login');
 
         return response()->json([
             'success' => true,
             'otp_required' => true,
             'username' => $user->Username,
-            'message' => 'A verification code has been sent to ' . $user->Email . '.',
-            // Only present when APP_DEBUG=true - lets you test the OTP flow
-            // without a working mail transport. Never exposed in production.
-            'debug_otp' => config('app.debug') ? $otp : null,
+            'message' => 'A verification code has been sent to ' . $this->maskEmail($user->Email) . '.',
         ]);
     }
 
@@ -49,22 +84,37 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'username' => 'required|string',
-            'otp' => 'required|string',
+            'otp' => ['required', 'digits:6'],
+            'remember' => 'nullable|boolean',
         ]);
+
+        $rateKey = $this->rateIdentifier($data['username'], $request);
+
+        if ($this->isRateLimited($rateKey, 'verify_otp')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many attempts. Please request a new code and try again shortly.',
+            ], 429);
+        }
 
         $user = User::where('Username', $data['username'])->first();
         if (!$user) {
+            $this->registerFailure($rateKey, 'verify_otp', self::OTP_VERIFY_MAX_ATTEMPTS, self::OTP_VERIFY_DECAY_MINUTES);
             return response()->json(['success' => false, 'message' => 'Invalid or expired code.'], 422);
         }
 
         $check = $this->checkOtp($user, 'login', $data['otp']);
         if (!$check['success']) {
+            $this->registerFailure($rateKey, 'verify_otp', self::OTP_VERIFY_MAX_ATTEMPTS, self::OTP_VERIFY_DECAY_MINUTES);
             return response()->json($check, 422);
         }
 
+        $this->clearRateLimit($rateKey, 'verify_otp');
+        $this->clearRateLimit($rateKey, 'login');
+
         $this->syncUserSessionState($user, true);
 
-        $token = $this->issueToken($user);
+        $token = $this->issueToken($user, (bool) ($data['remember'] ?? false));
 
         return response()->json([
             'success' => true,
@@ -76,15 +126,27 @@ class AuthController extends Controller
     public function resendOtp(Request $request)
     {
         $data = $request->validate(['username' => 'required|string']);
+        $rateKey = $this->rateIdentifier($data['username'], $request);
+
+        $cooldownMessage = $this->enforceResendLimit($rateKey, 'resend_otp');
+        if ($cooldownMessage) {
+            return response()->json(['success' => false, 'message' => $cooldownMessage], 429);
+        }
+
         $user = User::where('Username', $data['username'])->first();
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Account not found.'], 404);
         }
-        $otp = $this->issueOtp($user, 'login');
+        if (empty($user->Email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account has no registered email address. Contact an administrator.',
+            ], 422);
+        }
+        $this->issueOtp($user, 'login');
         return response()->json([
             'success' => true,
             'message' => 'A new code has been sent.',
-            'debug_otp' => config('app.debug') ? $otp : null,
         ]);
     }
 
@@ -174,16 +236,19 @@ class AuthController extends Controller
     public function forgotStart(Request $request)
     {
         $data = $request->validate(['username' => 'required|string', 'email' => 'required|email']);
+
+        $rateKey = $this->rateIdentifier($data['username'], $request);
+        $cooldownMessage = $this->enforceResendLimit($rateKey, 'forgot_start');
+        if ($cooldownMessage) {
+            return response()->json(['success' => false, 'message' => $cooldownMessage], 429);
+        }
+
         $user = User::where('Username', $data['username'])->where('Email', $data['email'])->first();
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'No account matches that username and email.'], 404);
         }
-        $otp = $this->issueOtp($user, 'password_reset');
-        return response()->json([
-            'success' => true,
-            'message' => 'A verification code has been sent to your email.',
-            'debug_otp' => config('app.debug') ? $otp : null,
-        ]);
+        $this->issueOtp($user, 'password_reset');
+        return response()->json(['success' => true, 'message' => 'A verification code has been sent to your email.']);
     }
 
     public function forgotResendOtp(Request $request)
@@ -194,19 +259,36 @@ class AuthController extends Controller
     private function resendPasswordResetOtp(Request $request)
     {
         $data = $request->validate(['username' => 'required|string']);
+
+        $rateKey = $this->rateIdentifier($data['username'], $request);
+        $cooldownMessage = $this->enforceResendLimit($rateKey, 'forgot_resend_otp');
+        if ($cooldownMessage) {
+            return response()->json(['success' => false, 'message' => $cooldownMessage], 429);
+        }
+
         $user = User::where('Username', $data['username'])->first();
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Account not found.'], 404);
         }
-        $otp = $this->issueOtp($user, 'password_reset');
-        return response()->json(['success' => true, 'message' => 'A new code has been sent.', 'debug_otp' => config('app.debug') ? $otp : null]);
+        $this->issueOtp($user, 'password_reset');
+        return response()->json(['success' => true, 'message' => 'A new code has been sent.']);
     }
 
     public function forgotVerifyOtp(Request $request)
     {
-        $data = $request->validate(['username' => 'required|string', 'otp' => 'required|string']);
+        $data = $request->validate(['username' => 'required|string', 'otp' => ['required', 'digits:6']]);
+
+        $rateKey = $this->rateIdentifier($data['username'], $request);
+        if ($this->isRateLimited($rateKey, 'forgot_verify_otp')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many attempts. Please request a new code and try again shortly.',
+            ], 429);
+        }
+
         $user = User::where('Username', $data['username'])->first();
         if (!$user) {
+            $this->registerFailure($rateKey, 'forgot_verify_otp', self::OTP_VERIFY_MAX_ATTEMPTS, self::OTP_VERIFY_DECAY_MINUTES);
             return response()->json(['success' => false, 'message' => 'Invalid or expired code.'], 422);
         }
 
@@ -217,6 +299,7 @@ class AuthController extends Controller
             ->first();
 
         if (!$record || $record->ExpiresAt < now()) {
+            $this->registerFailure($rateKey, 'forgot_verify_otp', self::OTP_VERIFY_MAX_ATTEMPTS, self::OTP_VERIFY_DECAY_MINUTES);
             return response()->json(['success' => false, 'message' => 'Invalid or expired code.'], 422);
         }
         if ($record->Attempts >= 5) {
@@ -224,8 +307,11 @@ class AuthController extends Controller
         }
         if (!Hash::check($data['otp'], $record->CodeHash)) {
             $record->increment('Attempts');
+            $this->registerFailure($rateKey, 'forgot_verify_otp', self::OTP_VERIFY_MAX_ATTEMPTS, self::OTP_VERIFY_DECAY_MINUTES);
             return response()->json(['success' => false, 'message' => 'Invalid or expired code.'], 422);
         }
+
+        $this->clearRateLimit($rateKey, 'forgot_verify_otp');
 
         $record->VerifiedAt = now();
         $record->save();
@@ -294,17 +380,14 @@ class AuthController extends Controller
         return $code;
     }
 
-    /** Best-effort email delivery; never blocks the flow if mail isn't configured. */
+    /** Delivers the code to the email registered on the authenticated account. */
     private function deliverOtp(User $user, string $code, string $purpose): void
     {
-        Log::info("OTP for {$user->Username} ({$purpose}): {$code}");
-        try {
-            Mail::raw("Your GarageManager verification code is {$code}. It expires in " . self::OTP_TTL_MINUTES . " minutes.", function ($message) use ($user) {
-                $message->to($user->Email)->subject('Your GarageManager verification code');
-            });
-        } catch (\Throwable $e) {
-            Log::warning('OTP email delivery failed: ' . $e->getMessage());
-        }
+        $email = $user->getAttribute('Email');
+
+        Mail::to($email)->send(new OtpMail($code, self::OTP_TTL_MINUTES));
+
+        Log::info("OTP for {$user->Username} ({$purpose}) sent to {$email}");
     }
 
     private function checkOtp(User $user, string $purpose, string $code): array
@@ -339,14 +422,15 @@ class AuthController extends Controller
         $user->save();
     }
 
-    private function issueToken(User $user): string
+    private function issueToken(User $user, bool $remember = false): string
     {
         $plain = Str::random(64);
         $this->syncUserSessionState($user, true);
+        $ttlDays = $remember ? self::TOKEN_TTL_DAYS_REMEMBERED : self::TOKEN_TTL_DAYS;
         AuthToken::create([
             'UserID' => $user->UserID,
             'TokenHash' => hash('sha256', $plain),
-            'ExpiresAt' => now()->addDays(self::TOKEN_TTL_DAYS),
+            'ExpiresAt' => now()->addDays($ttlDays),
         ]);
         return $plain;
     }
@@ -362,5 +446,96 @@ class AuthController extends Controller
             'role' => $user->Role,
             'mechanic_id' => $user->MechanicID,
         ];
+    }
+
+    /** e.g. "jo***@example.com" - enough for the user to recognize their own inbox without fully exposing it in a response payload. */
+    private function maskEmail(string $email): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        if ($domain === '') {
+            return $email;
+        }
+        $visible = mb_substr($local, 0, min(2, mb_strlen($local)));
+        return $visible . str_repeat('*', max(1, mb_strlen($local) - mb_strlen($visible))) . '@' . $domain;
+    }
+
+    /* ---------------- rate limiting (backed by the `rate_limits` table) ---------------- */
+
+    private function rateIdentifier(string $username, Request $request): string
+    {
+        return strtolower($username) . '|' . $request->ip();
+    }
+
+    private function isRateLimited(string $identifier, string $endpoint): bool
+    {
+        $record = RateLimit::where('identifier', $identifier)->where('endpoint', $endpoint)->first();
+        return (bool) ($record && $record->blocked_until && $record->blocked_until->isFuture());
+    }
+
+    /** Records a failed attempt; blocks the identifier once maxAttempts is reached within the decay window. */
+    private function registerFailure(string $identifier, string $endpoint, int $maxAttempts, int $decayMinutes): void
+    {
+        $record = RateLimit::where('identifier', $identifier)->where('endpoint', $endpoint)->first();
+
+        if (!$record || $record->first_attempt->lt(now()->subMinutes($decayMinutes))) {
+            RateLimit::updateOrCreate(
+                ['identifier' => $identifier, 'endpoint' => $endpoint],
+                ['attempt_count' => 1, 'first_attempt' => now(), 'last_attempt' => now(), 'blocked_until' => null]
+            );
+            return;
+        }
+
+        $record->attempt_count += 1;
+        $record->last_attempt = now();
+        if ($record->attempt_count >= $maxAttempts) {
+            $record->blocked_until = now()->addMinutes($decayMinutes);
+        }
+        $record->save();
+    }
+
+    private function clearRateLimit(string $identifier, string $endpoint): void
+    {
+        RateLimit::where('identifier', $identifier)->where('endpoint', $endpoint)->delete();
+    }
+
+    /**
+     * Enforces both a short cooldown between individual resend requests and
+     * a cap on total resends per decay window. Returns a user-facing
+     * message if the request should be blocked, or null if it's allowed
+     * (in which case the attempt is recorded).
+     */
+    private function enforceResendLimit(string $identifier, string $endpoint): ?string
+    {
+        $record = RateLimit::where('identifier', $identifier)->where('endpoint', $endpoint)->first();
+
+        if ($record) {
+            if ($record->blocked_until && $record->blocked_until->isFuture()) {
+                return 'Too many requests. Please try again later.';
+            }
+            if ($record->last_attempt && $record->last_attempt->gt(now()->subSeconds(self::RESEND_COOLDOWN_SECONDS))) {
+                return 'Please wait a few seconds before requesting another code.';
+            }
+            if ($record->first_attempt->lt(now()->subMinutes(self::RESEND_DECAY_MINUTES))) {
+                $record->attempt_count = 0;
+                $record->first_attempt = now();
+                $record->blocked_until = null;
+            }
+            $record->attempt_count += 1;
+            $record->last_attempt = now();
+            if ($record->attempt_count >= self::RESEND_MAX_ATTEMPTS) {
+                $record->blocked_until = now()->addMinutes(self::RESEND_DECAY_MINUTES);
+            }
+            $record->save();
+            return null;
+        }
+
+        RateLimit::create([
+            'identifier' => $identifier,
+            'endpoint' => $endpoint,
+            'attempt_count' => 1,
+            'first_attempt' => now(),
+            'last_attempt' => now(),
+        ]);
+        return null;
     }
 }

@@ -4,6 +4,7 @@ import { DashboardShell, DataTable, Modal, DetailsModal, useViewModal, StatCard,
 import { phoneError, digitsOnly, todayStr } from '../../utils/validators';
 import { useAuth, useToast } from '../../context';
 import { jobsApi, customersApi, inventoryApi, notificationsApi, authApi } from '../../api';
+import { JOB_WORKFLOW_STATUSES, normalizeJobStatus } from '../../utils/jobStatus';
 
 // Single flat "Main" section, matching Mechanic.php's sidebar exactly - no
 // sub-grouping, and no Settings link (Settings lives only in the profile
@@ -30,10 +31,10 @@ function jobStatusBadgeClass(status) {
       return 'badge-delivered';
     case 'Pending':
       return 'badge-pending';
-    case 'In Progress':
+    case 'InProgress':
     case 'Diagnosed':
       return 'badge-inprogress';
-    case 'Awaiting Parts':
+    case 'AwaitingParts':
       return 'badge-awaiting';
     case 'Cancelled':
       return 'badge-danger';
@@ -43,9 +44,7 @@ function jobStatusBadgeClass(status) {
 }
 const JobStatusBadge = ({ status }) => <span className={`badge-status ${jobStatusBadgeClass(status)}`}>{status || 'Pending'}</span>;
 
-const JOB_STATUS_OPTIONS = ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts', 'Ready', 'Delivered', 'Cancelled'];
-const HISTORY_STATUSES = ['Delivered', 'Ready', 'Completed', 'Cancelled'];
-const ACTIVE_STATUSES = ['Pending', 'Diagnosed', 'In Progress'];
+const ACTIVE_STATUSES = JOB_WORKFLOW_STATUSES.slice(0, -2);
 
 const emptyRequest = { RequestID: null, SparePartID: '', JobID: '', QuantityRequested: 1, Reason: '' };
 
@@ -54,11 +53,13 @@ export default function Mechanic() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingJobId, setUpdatingJobId] = useState(null);
   const handleRefresh = async () => { if (refreshing) return; setRefreshing(true); try { await loadAll(); } finally { setRefreshing(false); } };
   const viewNotification = useViewModal('viewNotificationModal');
   const viewJob = useViewModal('viewJobModal');
 
   const [jobs, setJobs] = useState([]);
+  const [jobHistoryRecords, setJobHistoryRecords] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [spareParts, setSpareParts] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -76,14 +77,16 @@ export default function Mechanic() {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [j, v, sp, req, notif] = await Promise.all([
+    const [j, h, v, sp, req, notif] = await Promise.all([
       jobsApi.listJobs(),
+      jobsApi.listJobHistory(),
       customersApi.listVehicles(),
       inventoryApi.listSpareParts(),
       inventoryApi.listSparePartRequests(),
       notificationsApi.listAll(),
     ]);
     if (j.success) setJobs(j.data || []);
+    if (h.success) setJobHistoryRecords(h.data || []);
     if (v.success) setVehicles(v.data || []);
     if (sp.success) setSpareParts(sp.data || []);
     if (req.success) setRequests(req.data || []);
@@ -95,12 +98,16 @@ export default function Mechanic() {
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.IsRead).length, [notifications]);
   const vehiclePlate = (id) => vehicles.find((v) => v.VehicleID === id)?.PlateNumber || '-';
+  const selectedPart = spareParts.find((part) => String(part.SparePartID) === String(requestForm.SparePartID));
+  const requestedQuantity = Number(requestForm.QuantityRequested || 0);
+  const selectedUnitCost = Number(selectedPart?.UnitPrice || 0);
+  const requestedTotalCost = selectedUnitCost * requestedQuantity;
 
   const myJobs = jobs; // /jobs is already scoped to the signed-in mechanic on the backend
-  const activeJobs = myJobs.filter((j) => ACTIVE_STATUSES.includes(j.Status));
-  const awaitingPartsJobs = myJobs.filter((j) => j.Status === 'Awaiting Parts');
-  const completedJobs = myJobs.filter((j) => ['Delivered', 'Ready', 'Completed'].includes(j.Status));
-  const jobHistory = myJobs.filter((j) => HISTORY_STATUSES.includes(j.Status));
+  const activeJobs = myJobs.filter((j) => ACTIVE_STATUSES.includes(normalizeJobStatus(j.Status)));
+  const awaitingPartsJobs = myJobs.filter((j) => normalizeJobStatus(j.Status) === 'AwaitingParts');
+  const completedJobs = myJobs.filter((j) => ['Delivered', 'Ready'].includes(normalizeJobStatus(j.Status)));
+  const jobHistory = jobHistoryRecords;
   const todayStr = new Date().toISOString().slice(0, 10);
   const partsRequestedToday = requests.filter((r) => (r.RequestedAt || '').slice(0, 10) === todayStr).length;
 
@@ -121,23 +128,41 @@ export default function Mechanic() {
     }
   };
 
-  const updateJobStatus = async (job, newStatus) => {
-    const res = await jobsApi.saveJob({ JobID: job.JobID, Status: newStatus });
-    if (res.success) { showToast('Status updated successfully', 'success'); loadAll(); }
-    else showToast(res.message || 'Failed to update status.', 'danger');
+  const advanceJob = async (job) => {
+    if (updatingJobId === job.JobID) return;
+    setUpdatingJobId(job.JobID);
+    const res = await jobsApi.nextJob(job.JobID);
+    if (res.success) {
+      if (res.data) setJobs((current) => current.map((item) => item.JobID === job.JobID ? { ...item, ...res.data } : item));
+      showToast(res.message || 'Job advanced.', 'success');
+      loadAll();
+    } else showToast(res.message || 'Failed to advance job.', 'danger');
+    setUpdatingJobId(null);
+  };
+  const cancelJob = async (job) => {
+    if (updatingJobId === job.JobID) return;
+    setUpdatingJobId(job.JobID);
+    const res = await jobsApi.cancelJob(job.JobID);
+    if (res.success) {
+      if (res.data) setJobs((current) => current.map((item) => item.JobID === job.JobID ? { ...item, ...res.data } : item));
+      showToast(res.message || 'Job cancelled.', 'success');
+      loadAll();
+    } else showToast(res.message || 'Failed to cancel job.', 'danger');
+    setUpdatingJobId(null);
   };
 
-  const deleteHistoryJob = async (job) => {
-    if (!(await ConfirmDelete('job', `Job ${job.JobID}`))) return;
-    const res = await jobsApi.removeJob(job.JobID);
-    if (res.success) { showToast('Job removed successfully.', 'success'); loadAll(); }
-    else showToast(res.message || 'Failed to delete job.', 'danger');
+  const deleteHistoryRecord = async (record) => {
+    if (!(await ConfirmDelete('history record', `Job #${record.JobID} status update`))) return;
+    const res = await jobsApi.removeJobHistory(record.HistoryID);
+    if (res.success) { showToast('History record deleted.', 'success'); loadAll(); }
+    else showToast(res.message || 'Failed to delete history record.', 'danger');
   };
 
   const saveRequest = async (e) => {
     e.preventDefault();
     if (!requestForm.SparePartID) { showToast('Please select a spare part.', 'danger'); return; }
     if (!requestForm.QuantityRequested || Number(requestForm.QuantityRequested) < 1) { showToast('Quantity must be at least 1.', 'danger'); return; }
+    if (selectedPart && requestedQuantity > Number(selectedPart.Quantity || 0)) { showToast('Requested quantity exceeds available stock.', 'danger'); return; }
     if (!requestForm.Reason || requestForm.Reason.trim().length < 5) { showToast('Please provide a reason for the request.', 'danger'); return; }
     const res = await inventoryApi.saveSparePartRequest(requestForm);
     if (res.success) { showToast(res.message || 'Request submitted successfully.', 'success'); hideBsModal('requestModal'); loadAll(); }
@@ -247,7 +272,7 @@ export default function Mechanic() {
                 </button>
               </div>
               <div className="table-responsive">
-                <table className="table table-custom">
+                <table id="assignedTable" className="table table-custom">
                   <thead><tr><th>Job ID</th><th>Vehicle</th><th>Customer</th><th>Status</th><th>Action</th><th>Update Status</th></tr></thead>
                   <tbody>
                     {myJobs.length === 0 ? (
@@ -257,15 +282,32 @@ export default function Mechanic() {
                         <td className="row-number">{i + 1}</td>
                         <td>{vehiclePlate(j.VehicleID)}</td>
                         <td>{j.CustomerName || '-'}</td>
-                        <td><JobStatusBadge status={j.Status} /></td>
+                        <td><JobStatusBadge status={normalizeJobStatus(j.Status)} /></td>
                         <td className="text-center">
                           <button className="btn-action view" title="View" onClick={() => viewJob.open(j)}><i className="bi bi-eye"></i></button>
-                          <button className="btn-icon" title="Record notes" onClick={() => openNotes(j)}><i className="bi bi-pencil-square"></i></button>
                         </td>
                         <td>
-                          <select className="status-select" value={j.Status || 'Pending'} onChange={(e) => updateJobStatus(j, e.target.value)}>
-                            {JOB_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                          <div className="job-status-actions">
+                            <button
+                              type="button"
+                              className="job-status-btn job-next-btn"
+                              onClick={() => advanceJob(j)}
+                              disabled={normalizeJobStatus(j.Status) === 'Cancelled' || normalizeJobStatus(j.Status) === 'Delivered' || updatingJobId === j.JobID}
+                              title={normalizeJobStatus(j.Status) === 'Cancelled' ? 'Cancelled jobs cannot continue' : 'Advance to the next workflow status'}
+                            >
+                              <i className={`bi ${updatingJobId === j.JobID ? 'bi-arrow-repeat spin' : 'bi-arrow-right'}`}></i>
+                              {updatingJobId === j.JobID ? 'Updating...' : 'Next'}
+                            </button>
+                            <button
+                              type="button"
+                              className="job-status-btn job-cancel-btn"
+                              onClick={() => cancelJob(j)}
+                              disabled={normalizeJobStatus(j.Status) === 'Cancelled' || updatingJobId === j.JobID}
+                              title="Mark this repair job as cancelled"
+                            >
+                              <i className="bi bi-x-circle"></i> Cancelled
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -285,6 +327,10 @@ export default function Mechanic() {
               { label: 'Start Date', value: viewJob.row.StartDate },
               { label: 'End Date', value: viewJob.row.EndDate },
             ]}
+            actions={viewJob.row && <>
+              {normalizeJobStatus(viewJob.row.Status) !== 'Delivered' && normalizeJobStatus(viewJob.row.Status) !== 'Cancelled' && <button type="button" className="btn-blue btn-sm" onClick={() => advanceJob(viewJob.row)}><i className="bi bi-arrow-right"></i> Next</button>}
+              {normalizeJobStatus(viewJob.row.Status) !== 'Cancelled' && <button type="button" className="btn-icon danger" title="Cancel job" onClick={() => cancelJob(viewJob.row)}><i className="bi bi-x-circle"></i></button>}
+            </>}
           />
 
           <Modal id="diagnosticsModal" title={`Record Notes${notesJobId ? ` - Job ${notesJobId} (${notesPlate})` : ''}`} icon="bi-clipboard2-plus">
@@ -319,7 +365,7 @@ export default function Mechanic() {
                       <label className="form-label-custom">Job <span className="text-muted">(optional)</span></label>
                       <select className="form-select form-control-custom" value={requestForm.JobID ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, JobID: e.target.value }))}>
                         <option value="">Select job (optional)...</option>
-                        {myJobs.filter((j) => ['Pending', 'Diagnosed', 'In Progress', 'Awaiting Parts'].includes(j.Status)).map((j) => (
+                        {myJobs.filter((j) => ACTIVE_STATUSES.includes(normalizeJobStatus(j.Status))).map((j) => (
                           <option key={j.JobID} value={j.JobID}>{vehiclePlate(j.VehicleID)} - {j.CustomerName || 'Unknown'}</option>
                         ))}
                       </select>
@@ -333,8 +379,11 @@ export default function Mechanic() {
                     </div>
                     <div className="col-md-4">
                       <label className="form-label-custom">Quantity</label>
-                      <input type="number" min="1" className="form-control form-control-custom" required value={requestForm.QuantityRequested ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, QuantityRequested: e.target.value }))} />
+                      <input type="number" min="1" max={selectedPart?.Quantity ?? undefined} className="form-control form-control-custom" required value={requestForm.QuantityRequested ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, QuantityRequested: e.target.value }))} />
                     </div>
+                    <div className="col-md-4"><label className="form-label-custom">Available Quantity</label><input type="text" className="form-control form-control-custom" readOnly value={selectedPart ? `${selectedPart.Quantity} units` : '-'} /></div>
+                    <div className="col-md-4"><label className="form-label-custom">Unit Cost</label><input type="text" className="form-control form-control-custom" readOnly value={selectedPart ? `${selectedUnitCost.toLocaleString('en-US')} RWF` : '-'} /></div>
+                    <div className="col-md-4"><label className="form-label-custom">Total Cost</label><input type="text" className="form-control form-control-custom" readOnly value={selectedPart ? `${requestedTotalCost.toLocaleString('en-US')} RWF` : '-'} /></div>
                     <div className="col-md-8">
                       <label className="form-label-custom">Reason</label>
                       <input type="text" className="form-control form-control-custom" placeholder="Why do you need this part?" value={requestForm.Reason ?? ''} onChange={(e) => setRequestForm((f) => ({ ...f, Reason: e.target.value }))} />
@@ -353,15 +402,17 @@ export default function Mechanic() {
                 </div>
                 <div className="table-responsive">
                   <table className="table table-custom">
-                    <thead><tr><th>Request ID</th><th>Part</th><th>Quantity</th><th>Reason</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Request ID</th><th>Part</th><th>Quantity</th><th>Unit Cost</th><th>Total Cost</th><th>Reason</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
                     <tbody>
                       {requests.length === 0 ? (
-                        <tr><td colSpan={7} className="text-center text-muted">No requests yet.</td></tr>
+                        <tr><td colSpan={9} className="text-center text-muted">No requests yet.</td></tr>
                       ) : requests.map((r) => (
                         <tr key={r.RequestID}>
                           <td>{r.RequestID}</td>
                           <td>{r.SparePartName || spareParts.find((p) => p.SparePartID === r.SparePartID)?.PartName || 'N/A'}</td>
                           <td>{r.QuantityRequested}</td>
+                          <td>{Number(r.UnitCost || 0).toLocaleString('en-US')} RWF</td>
+                          <td>{Number(r.TotalCost || (Number(r.UnitCost || 0) * Number(r.QuantityRequested || 0))).toLocaleString('en-US')} RWF</td>
                           <td>{r.Reason || '-'}</td>
                           <td><StatusBadge status={r.Status || 'Pending'} okValues={['Fulfilled']} lowValues={['Rejected']} /></td>
                           <td>{r.RequestedAt ? new Date(r.RequestedAt).toLocaleDateString() : '-'}</td>
@@ -379,9 +430,9 @@ export default function Mechanic() {
             <>
               <div className="row g-3 mb-3">
                 <StatCard icon="bi-clock-history" color="blue" value={jobHistory.length} label="Total History" colClass="col-6 col-sm-6 col-lg-3" />
-                <StatCard icon="bi-truck" color="green" value={jobHistory.filter((j) => j.Status === 'Delivered').length} label="Delivered" colClass="col-6 col-sm-6 col-lg-3" />
-                <StatCard icon="bi-check-circle-fill" color="purple" value={jobHistory.filter((j) => j.Status === 'Ready' || j.Status === 'Completed').length} label="Ready / Completed" colClass="col-6 col-sm-6 col-lg-3" />
-                <StatCard icon="bi-x-circle-fill" color="red" value={jobHistory.filter((j) => j.Status === 'Cancelled').length} label="Cancelled" colClass="col-6 col-sm-6 col-lg-3" />
+                  <StatCard icon="bi-truck" color="green" value={jobHistory.filter((j) => normalizeJobStatus(j.NewStatus) === 'Delivered').length} label="Delivered" colClass="col-6 col-sm-6 col-lg-3" />
+                    <StatCard icon="bi-check-circle-fill" color="purple" value={jobHistory.filter((j) => normalizeJobStatus(j.NewStatus) === 'Ready').length} label="Ready" colClass="col-6 col-sm-6 col-lg-3" />
+                  <StatCard icon="bi-x-circle-fill" color="red" value={jobHistory.filter((j) => normalizeJobStatus(j.NewStatus) === 'Cancelled').length} label="Cancelled" colClass="col-6 col-sm-6 col-lg-3" />
               </div>
               <div className="table-card">
               <div className="table-header">
@@ -397,15 +448,15 @@ export default function Mechanic() {
                     {jobHistory.length === 0 ? (
                       <tr><td colSpan={6} className="text-center text-muted">No completed jobs yet.</td></tr>
                     ) : jobHistory.map((h, i) => (
-                      <tr key={h.JobID}>
+                      <tr key={h.HistoryID ?? `${h.JobID}-${h.ChangedAt}-${i}`}>
                         <td className="row-number">{i + 1}</td>
-                        <td>{h.EndDate || '-'}</td>
+                        <td>{h.ChangedAt ? new Date(h.ChangedAt).toLocaleString() : '-'}</td>
                         <td>{vehiclePlate(h.VehicleID)}</td>
-                        <td><span className="badge-status badge-delivered">{h.Status}</span></td>
-                        <td>{h.Notes || '-'}</td>
+                        <td><JobStatusBadge status={normalizeJobStatus(h.NewStatus)} /></td>
+                        <td className="history-notes-cell">{h.Notes || '-'}</td>
                         <td>
-                          <button className="btn-action view" title="View" onClick={() => viewJob.open(h)}><i className="bi bi-eye"></i></button>
-                          <button className="btn-action delete" title="Delete" onClick={() => deleteHistoryJob(h)}><i className="bi bi-trash"></i></button>
+                          <button className="btn-action view" title="View" onClick={() => viewJob.open(jobs.find((job) => job.JobID === h.JobID) || h)}><i className="bi bi-eye"></i></button>
+                          <button className="btn-action delete" title="Delete history record" onClick={() => deleteHistoryRecord(h)}><i className="bi bi-trash"></i></button>
                         </td>
                       </tr>
                     ))}

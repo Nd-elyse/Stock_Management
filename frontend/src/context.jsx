@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { authApi, setToken } from './api';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { authApi, getToken, isTokenRemembered, setToken } from './api';
 
 /* ============================================================
    AUTH CONTEXT
@@ -18,52 +18,96 @@ const ROLE_PATHS = {
   'Stock Manager': '/dashboard/stock',
 };
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [ready, setReady] = useState(true);
-  const pendingUsernameRef = useRef('');
+function readCachedUser() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
-  const persist = (value) => {
+function mapUser(apiUser) {
+  return {
+    id: apiUser.id,
+    name: apiUser.full_name,
+    username: apiUser.username,
+    email: apiUser.email,
+    phone: apiUser.phone,
+    role: apiUser.role,
+    mechanicId: apiUser.mechanic_id,
+  };
+}
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(readCachedUser);
+  // Not ready until we've confirmed (via /me) whether a token carried over
+  // from a previous visit is still valid - otherwise a stale/expired token
+  // with no cached user object would bounce straight to /login.
+  const [ready, setReady] = useState(false);
+  const pendingUsernameRef = useRef('');
+  const pendingRememberRef = useRef(false);
+  const rememberRef = useRef(false);
+
+  const persist = (value, remember = rememberRef.current) => {
     setUser(value);
-    if (value) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    else sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
+    if (value) {
+      rememberRef.current = remember;
+      (remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(value));
+    }
   };
 
-  const login = useCallback(async (username, password) => {
+  // On first mount, re-validate any carried-over token against the server
+  // rather than trusting a possibly-stale cached user object or silently
+  // failing to restore a still-valid session (see storage-tier note above).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!getToken()) {
+        if (!cancelled) setReady(true);
+        return;
+      }
+      const res = await authApi.me();
+      if (cancelled) return;
+      if (res.success && res.user) {
+        persist(mapUser(res.user), isTokenRemembered());
+      } else {
+        setToken('');
+        persist(null);
+      }
+      setReady(true);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const login = useCallback(async (username, password, remember = false) => {
     const res = await authApi.login(username, password);
     if (res.success && res.otp_required) {
       pendingUsernameRef.current = res.username || username;
+      pendingRememberRef.current = !!remember;
       return { requiresOtp: true, message: res.message };
     }
     return { success: false, message: res.message || 'Invalid credentials. Please try again.' };
   }, []);
 
   const verifyOtp = useCallback(async (otp) => {
-    const res = await authApi.verifyOtp(pendingUsernameRef.current, otp);
+    const remember = pendingRememberRef.current;
+    const res = await authApi.verifyOtp(pendingUsernameRef.current, otp, remember);
     if (res.success && res.token) {
-      setToken(res.token);
-      persist({
-        id: res.user.id,
-        name: res.user.full_name,
-        username: res.user.username,
-        email: res.user.email,
-        phone: res.user.phone,
-        role: res.user.role,
-        mechanicId: res.user.mechanic_id,
-      });
+      setToken(res.token, remember);
+      persist(mapUser(res.user), remember);
       return { success: true, role: res.user.role };
     }
     return { success: false, message: res.message || 'Invalid or expired code.' };
   }, []);
 
-  const resendOtp = useCallback(() => authApi.resendOtp(pendingUsernameRef.current), []);
+  const resendOtp = useCallback(async () => {
+    const res = await authApi.resendOtp(pendingUsernameRef.current);
+    return res;
+  }, []);
   const cancelOtp = useCallback(() => authApi.cancelOtp(pendingUsernameRef.current), []);
 
   const logout = useCallback(async () => {

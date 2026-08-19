@@ -1339,7 +1339,8 @@ body.site-staff .dashboard-main {
     padding: 0;
 }
 body.site-staff .dashboard-topbar {
-    background: var(--bg-white);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
     padding: 0.8rem 2rem;
     border-bottom: 1px solid var(--border-light);
     display: flex;
@@ -1347,9 +1348,11 @@ body.site-staff .dashboard-topbar {
     justify-content: space-between;
     position: sticky;
     top: 0;
+    left: 0;
     z-index: 1040;
     flex-wrap: wrap;
     gap: 0.5rem;
+    width: 100%;
 }
 body.site-staff .dashboard-topbar h5 {
     font-weight: 700;
