@@ -57,6 +57,8 @@ export default function StockManager() {
   const [supplierForm, setSupplierForm] = useState(emptySupplier);
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchase);
   const [profileForm, setProfileForm] = useState({ full_name: user?.name || '', username: user?.username || '', email: user?.email || '', phone: user?.phone || '', current_password: '', new_password: '', confirm_password: '' });
+  const [rejectingRequest, setRejectingRequest] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -138,11 +140,26 @@ export default function StockManager() {
     if (res.success) loadAll();
   };
   const rejectRequest = async (r) => {
-    const reason = window.prompt('Reason for rejecting this request:');
-    if (reason === null) return;
-    const res = await inventoryApi.rejectSparePartRequest(r.RequestID, reason);
+    setRejectingRequest(r);
+    setRejectionReason('');
+    showBsModal('rejectRequestModal');
+  };
+  const cancelRejectRequest = () => {
+    hideBsModal('rejectRequestModal');
+    setRejectingRequest(null);
+    setRejectionReason('');
+  };
+  const submitRejectRequest = async (e) => {
+    e.preventDefault();
+    if (!rejectingRequest) return;
+    const res = await inventoryApi.rejectSparePartRequest(rejectingRequest.RequestID, rejectionReason.trim());
     showToast(res.success ? 'Request rejected.' : res.message || 'Could not reject request.', res.success ? 'success' : 'danger');
-    if (res.success) loadAll();
+    if (res.success) {
+      hideBsModal('rejectRequestModal');
+      setRejectingRequest(null);
+      setRejectionReason('');
+      loadAll();
+    }
   };
   const deleteRequest = async (r) => {
     if (!(await ConfirmDelete('request', r.SparePartName || partName(r.SparePartID)))) return;
@@ -502,6 +519,27 @@ export default function StockManager() {
                   { label: 'Decided At', value: fmtDateTime(viewRequest.row.DecidedAt) },
                 ]}
               />
+              <Modal id="rejectRequestModal" title="Reason for rejecting this request:" icon="bi-x-octagon" size="modal-md">
+                <form onSubmit={submitRejectRequest}>
+                  <div className="reject-reason-panel">
+                    <p className="reject-reason-help">Please provide a reason for rejecting this spare part request.</p>
+                    <label className="form-label-custom" htmlFor="rejectionReason">Rejection reason</label>
+                    <textarea
+                      id="rejectionReason"
+                      className="form-control form-control-custom reject-reason-input"
+                      rows="4"
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Enter the reason for rejection..."
+                      autoFocus
+                    />
+                  </div>
+                  <div className="reject-reason-actions">
+                    <button type="button" className="btn-cancel-reject" onClick={cancelRejectRequest}>Cancel</button>
+                    <button type="submit" className="btn-danger-custom"><i className="bi bi-x-circle"></i> Reject</button>
+                  </div>
+                </form>
+              </Modal>
             </>
           )}
 

@@ -162,6 +162,25 @@ export default function Receptionist() {
     return { ...next, TaxAmount: taxAmount, DiscountAmount: discountAmount, TotalAmount: total };
   };
   const updateInvoiceField = (field, value) => setInvoiceForm((f) => recalcInvoiceTotals({ ...f, [field]: value }));
+  const selectInvoiceCustomer = (customerId) => {
+    const customerVehicles = vehicles.filter((vehicle) => String(vehicle.CustomerID) === String(customerId));
+    const customerVehicleIds = new Set(customerVehicles.map((vehicle) => String(vehicle.VehicleID)));
+    const customerJobs = jobs.filter((job) => customerVehicleIds.has(String(job.VehicleID)));
+
+    setInvoiceForm((current) => {
+      const selectedVehicle = customerVehicles.length === 1 ? customerVehicles[0].VehicleID : '';
+      const selectedJob = customerJobs.length === 1 ? customerJobs[0].JobID : '';
+      const currentVehicleBelongsToCustomer = customerVehicles.some((vehicle) => String(vehicle.VehicleID) === String(current.VehicleID));
+      const currentJobBelongsToCustomer = customerJobs.some((job) => String(job.JobID) === String(current.JobID));
+
+      return {
+        ...current,
+        CustomerID: customerId,
+        VehicleID: currentVehicleBelongsToCustomer ? current.VehicleID : selectedVehicle,
+        JobID: currentJobBelongsToCustomer ? current.JobID : selectedJob,
+      };
+    });
+  };
   const openAddInvoice = () => { setInvoiceForm(emptyInvoice); showBsModal('invoiceModal'); };
   const openEditInvoice = (row) => {
     setInvoiceForm(recalcInvoiceTotals({
@@ -710,7 +729,7 @@ export default function Receptionist() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label-custom">Customer</label>
-                      <select className="form-select form-control-custom" required value={invoiceForm.CustomerID ?? ''} onChange={(e) => setInvoiceForm((f) => ({ ...f, CustomerID: e.target.value }))}>
+                      <select className="form-select form-control-custom" required value={invoiceForm.CustomerID ?? ''} onChange={(e) => selectInvoiceCustomer(e.target.value)}>
                         <option value="">Select customer...</option>
                         {customers.map((c) => <option key={c.CustomerID} value={c.CustomerID}>{c.FullName}</option>)}
                       </select>

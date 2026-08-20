@@ -493,10 +493,9 @@ export function StatusBadge({ status, okValues = ['Active', 'Paid', 'Delivered',
 export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, pageTitle, userName, userRole, unreadCount, notifications, onNotificationPreviewClick, onSearch, children }) {
   const { logout } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef(null);
   const userToggleRef = useRef(null);
   const userMenuListRef = useRef(null);
-  const [userMenuStyle, setUserMenuStyle] = useState({ visibility: 'hidden' });
+  const [userMenuStyle, setUserMenuStyle] = useState({});
   const [notifPreviewOpen, setNotifPreviewOpen] = useState(false);
   const notifRef = useRef(null);
 
@@ -522,7 +521,9 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
   useEffect(() => {
     if (!userMenuOpen) return;
     const onDocClick = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+      const clickedToggle = userToggleRef.current && userToggleRef.current.contains(e.target);
+      const clickedMenu = userMenuListRef.current && userMenuListRef.current.contains(e.target);
+      if (!clickedToggle && !clickedMenu) setUserMenuOpen(false);
     };
     const onKeyDown = (e) => { if (e.key === 'Escape') setUserMenuOpen(false); };
     document.addEventListener('mousedown', onDocClick);
@@ -533,36 +534,22 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
     };
   }, [userMenuOpen]);
 
-  // Keep the profile menu pinned to the right of the sidebar, fully inside the
-  // viewport, regardless of the sidebar's own clipping/overflow rules.
   useLayoutEffect(() => {
     if (!userMenuOpen) return;
-    const GAP = 10;
-    const EDGE = 8;
 
     const positionMenu = () => {
-      const toggleEl = userToggleRef.current;
+      const anchorEl = userToggleRef.current;
       const menuEl = userMenuListRef.current;
-      if (!toggleEl || !menuEl) return;
-      const toggleRect = toggleEl.getBoundingClientRect();
+      if (!anchorEl || !menuEl) return;
+
+      const anchorRect = anchorEl.getBoundingClientRect();
       const menuRect = menuEl.getBoundingClientRect();
-      const viewportW = window.innerWidth;
-      const viewportH = window.innerHeight;
+      const gap = 14;
+      const edge = 8;
+      const left = Math.max(edge, Math.min(anchorRect.right + gap, window.innerWidth - menuRect.width - edge));
+      const top = Math.max(edge, Math.min(anchorRect.top, window.innerHeight - menuRect.height - edge));
 
-      // Prefer the right side of the nav bar; flip to the left if it wouldn't fit.
-      let left = toggleRect.right + GAP;
-      if (left + menuRect.width > viewportW - EDGE) {
-        left = Math.max(EDGE, toggleRect.left - menuRect.width - GAP);
-      }
-
-      // Align with the toggle vertically, then clamp so it never runs off-screen.
-      let top = toggleRect.top;
-      if (top + menuRect.height > viewportH - EDGE) {
-        top = viewportH - menuRect.height - EDGE;
-      }
-      if (top < EDGE) top = EDGE;
-
-      setUserMenuStyle({ position: 'fixed', top: `${top}px`, left: `${left}px`, visibility: 'visible' });
+      setUserMenuStyle({ position: 'fixed', top: `${top}px`, left: `${Math.max(edge, left)}px` });
     };
 
     positionMenu();
@@ -572,10 +559,6 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
       window.removeEventListener('resize', positionMenu);
       window.removeEventListener('scroll', positionMenu, true);
     };
-  }, [userMenuOpen]);
-
-  useEffect(() => {
-    if (!userMenuOpen) setUserMenuStyle({ visibility: 'hidden' });
   }, [userMenuOpen]);
 
   const navigate = useNavigate();
@@ -601,40 +584,52 @@ export function DashboardShell({ brandSub, navSections, activeTab, onTabChange, 
             <React.Fragment key={`${section.title}-${sIdx}`}>
               <div className="nav-section">{section.title}</div>
               {section.items.map((item) => (
-                <a
-                  key={item.key}
-                  href="#top"
-                  onClick={(e) => { e.preventDefault(); onTabChange(item.key); setSidebarOpen(false); }}
-                  className={activeTab === item.key ? 'active' : ''}
-                >
-                  <i className={`bi ${item.icon}`}></i> {item.label}
-                  {item.badge > 0 && <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.6rem' }}>{item.badge}</span>}
-                </a>
+                <React.Fragment key={item.key}>
+                  <a
+                    href="#top"
+                    onClick={(e) => { e.preventDefault(); onTabChange(item.key); setSidebarOpen(false); }}
+                    className={activeTab === item.key ? 'active' : ''}
+                  >
+                    <i className={`bi ${item.icon}`}></i> {item.label}
+                    {item.badge > 0 && <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.6rem' }}>{item.badge}</span>}
+                  </a>
+                </React.Fragment>
               ))}
             </React.Fragment>
           ))}
         </nav>
         <div className="sidebar-footer">
-          <div className={`dropdown${userMenuOpen ? ' show' : ''}`} ref={userMenuRef}>
-            <div className="user-info" ref={userToggleRef} onClick={() => setUserMenuOpen((v) => !v)} aria-expanded={userMenuOpen} role="button">
+          <div className={`dropdown${userMenuOpen ? ' show' : ''}`}>
+            <button
+              type="button"
+              className="user-info"
+              ref={userToggleRef}
+              onClick={() => setUserMenuOpen((v) => !v)}
+              aria-expanded={userMenuOpen}
+              aria-controls="profile-menu"
+            >
               <div className="user-avatar">{(userName || 'US').substring(0, 2).toUpperCase()}</div>
-              <div>
+              <div className="user-copy">
                 <div className="user-name">{userName}</div>
                 <div className="user-role">{userRole}</div>
               </div>
-            </div>
-            <ul
-              className={`dropdown-menu${userMenuOpen ? ' show' : ''}`}
-              ref={userMenuListRef}
-              style={userMenuStyle}
-            >
-              <li><a className="dropdown-item" href="#top" onClick={(e) => { e.preventDefault(); setUserMenuOpen(false); showBsModal('profileModal'); }}><i className="bi bi-gear"></i> Settings</a></li>
-              <li><hr className="dropdown-divider" /></li>
-              <li><a className="dropdown-item" href="#top" onClick={(e) => { setUserMenuOpen(false); handleLogout(e); }}><i className="bi bi-box-arrow-right"></i> Logout</a></li>
-            </ul>
+              <i className={`bi bi-chevron-${userMenuOpen ? 'up' : 'down'} user-menu-chevron`} aria-hidden="true"></i>
+            </button>
           </div>
         </div>
       </aside>
+
+      <ul
+        id="profile-menu"
+        className={`dropdown-menu sidebar-profile-menu${userMenuOpen ? ' show' : ''}`}
+        ref={userMenuListRef}
+        style={userMenuStyle}
+        aria-hidden={!userMenuOpen}
+      >
+        <li><a className="dropdown-item" href="#top" onClick={(e) => { e.preventDefault(); setUserMenuOpen(false); showBsModal('profileModal'); }}><i className="bi bi-gear"></i> Settings</a></li>
+        <li><hr className="dropdown-divider" /></li>
+        <li><a className="dropdown-item" href="#top" onClick={(e) => { setUserMenuOpen(false); handleLogout(e); }}><i className="bi bi-box-arrow-right"></i> Logout</a></li>
+      </ul>
 
 
       <div className="dashboard-main">
